@@ -1,0 +1,14 @@
+{
+  "name": "mb-input",
+  "version": "0.0.1",
+  "description": "MB-Input",
+  "dependencies": {
+    "express": "4.15.4",
+    "pug": "2.0.0-rc.3",
+    "mssql": "4.0.4",
+    "body-parser": "1.17.2",
+    "async-each": "1.0.1",
+    "async": "2.5.0"
+
+  }
+}

@@ -1,0 +1,133 @@
+
+
+.qv-object-VarTable *{
+
+  -webkit-box-sizing:content-box;
+  -moz-box-sizing:content-box;
+  box-sizing:content-box;
+}
+
+.qv-object-VarTable .root_table {
+}
+
+button {
+  display:inline;
+}
+
+div{
+  margin:0;
+  padding:0;
+}
+
+.control_panel {
+  position: relative;
+}
+
+table{
+  margin:0;
+  padding:0;
+  width: auto;
+}
+
+.table_wrapper {
+
+}
+th{
+  padding: 7px;
+  border-right: 1px solid #e6e6e6;
+  border-top: 1px solid #e6e6e6;
+  border-bottom: 1px solid #bbb;
+  font-size: 15p;
+  font-weight:normal;
+  text-align:right;
+  border-right: 1px solid #e6e6e6;
+  
+}
+
+
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+	width:100%
+}
+
+.mes{
+  text-align: right
+}
+
+button{
+    margin: 2px;
+}
+
+
+.main {
+  border-top: 1px solid #e6e6e6;
+}
+
+input{
+	text-align:right
+}
+
+
+
+body {
+    padding:0;
+    margin:0;	
+}
+
+.row:hover {
+    background: #e9ffff !important;
+    cursor: pointer;
+}
+.scroller {
+
+  width: 20px;
+  margin: 0;
+  padding: 0;
+  overflow:hidden;
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+.selected_row {
+    background: #f1f1f1 !important;
+}
+
+
+.clicksort:hover {
+    background-color: #f8f8f8;
+    cursor: pointer;
+}
+
+.scroller {
+
+  width: 20px;
+  margin: 0;
+  padding: 0;
+  overflow:hidden;
+  overflow-x: hidden;
+  overflow-y: scroll;
+
+}
+
+
+td{
+  padding: 3px;
+  border-right: 1px solid #e6e6e6;
+  border-bottom: 1px solid #e6e6e6;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align:right
+}
+
+.row::before {
+  content: normal !important;
+}
+
+.row::after {
+  content: normal !important;
+}
+
+.scroll_dummy {
+  height: 18600px;
+}

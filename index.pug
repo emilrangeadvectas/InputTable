@@ -1,0 +1,30 @@
+html
+  head
+    title MB-input
+  body
+    link(rel="stylesheet",type="text/css",href="/style.css")
+    style(type="text/css").
+      .error{background:#fdd}
+    script.
+      function submit_form()
+      {
+        document.getElementById('form').submit()
+      }
+    form(method='POST',action='/',id="form")
+      table
+          tr
+              each val, index in matrix.headers
+                  th(width="120")= val
+              th
+          each val, index in matrix.body
+              tr
+                  each val2, index in val
+                    if val2.form
+                      td
+                        input(type=text, value=val2.value, name=val2.form, class=val2.error ? 'error' : 'plain')
+                        input(type='hidden', value=val2.value, name='_'+val2.form)
+                    else
+                      td= val2.value
+                  td
+      //input(type='button' onclick="submit_form()")
+      input(type='submit', style="display:none")
