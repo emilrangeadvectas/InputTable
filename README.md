@@ -1,5 +1,7 @@
 # InputTable
 
+## Backend
+
 Install and run
 ```bash
 npm install
@@ -35,3 +37,10 @@ Open (create new) field
 ```bash
 node open_field.js 2017-06
 ```
+
+## Frontend
+
+Use a webclient goto `http://localhost:80`
+
+
+## Qlik
