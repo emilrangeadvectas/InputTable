@@ -3,9 +3,9 @@
 ## Backend
 
 Query to create table.
-You can change `database_name` to any name you want
+You can change `table_name` to any name you want
 ```sql
-CREATE TABLE [dbo].[database_name](
+CREATE TABLE [dbo].[table_name](
 	[_key] [nvarchar](32) NULL,
 	[field] [nvarchar](32) NULL,
 	[value] [int] NULL,
