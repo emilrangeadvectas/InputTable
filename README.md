@@ -2,8 +2,8 @@
 
 ## Backend
 
-Query to create table
-You can change `database_name` to any database name you want
+Query to create table.
+You can change `database_name` to any name you want
 ```sql
 CREATE TABLE [dbo].[database_name](
 	[_key] [nvarchar](32) NULL,
@@ -12,13 +12,6 @@ CREATE TABLE [dbo].[database_name](
 	[editable] [tinyint] NULL,
 	[created] [datetime] NULL
 ) ON [PRIMARY];
-```
-
-
-Install and run server
-```bash
-npm install
-node server.js
 ```
 
 Add/edit a `config.json` file in `config/` folder like this
@@ -34,6 +27,12 @@ Add/edit a `config.json` file in `config/` folder like this
         "instanceName": "EXAMPLE_INSTANCENAME"
     }
 }
+```
+
+Install and run server
+```bash
+npm install
+node server.js
 ```
 
 Add a key
