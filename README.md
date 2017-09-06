@@ -6,7 +6,7 @@ npm install
 node server.js
 ```
 
-Add a `config.json` file in `config/` folder like this
+Add/edit a `config.json` file in `config/` folder like this
 ```js
 {
     "user": "example_user",
@@ -19,4 +19,19 @@ Add a `config.json` file in `config/` folder like this
         "instanceName": "EXAMPLE_INSTANCENAME"
     }
 }
+```
+
+Add a key
+```bash
+node add_key_on_field.js apple 2017-06
+```
+
+Lock field
+```bash
+node lock_field.js 2017-06
+```
+
+Open (create new) field
+```bash
+node open_field.js 2017-06
 ```
