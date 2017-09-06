@@ -68,5 +68,5 @@ require('./src/db.js').get(config, function(db)
 
   });
 
-  app.listen(80);
+  app.listen(8066);
 });
