@@ -65,3 +65,7 @@ Edit `config.json` found in root folder of the extension if your backend is not 
 ```
 
 ### Setup data connection
+![](readme_files/img01.png)
+Change `localhost` to your host if you do not use localhost
+![](readme_files/img02.png)
+![](readme_files/img03.png)
