@@ -3,6 +3,7 @@
 ## Backend
 
 Query to create table
+You can change `database_name` to any database name you want
 ```sql
 CREATE TABLE [dbo].[database_name](
 	[_key] [nvarchar](32) NULL,
@@ -12,6 +13,7 @@ CREATE TABLE [dbo].[database_name](
 	[created] [datetime] NULL
 ) ON [PRIMARY];
 ```
+
 
 Install and run server
 ```bash
