@@ -1,0 +1,23 @@
+.qv-object-it input[type=button]
+{
+	float: left;
+	background: #fff;
+	width: 100px;
+	padding: 4px;
+	border: 1px solid #999;
+	margin: 4px;
+	border-radius: 4px;
+	font-weight: bold;
+	color: #444;
+}
+
+.qv-object-it input[type=button]:hover
+{
+	border: 1px solid #555;	
+}
+
+.qv-object-it input[type=button]:active
+{
+	background: #333;
+	color: #fff;
+}
