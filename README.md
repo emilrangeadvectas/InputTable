@@ -2,7 +2,18 @@
 
 ## Backend
 
-Install and run
+Query to create table
+```sql
+CREATE TABLE [dbo].[database_name](
+	[_key] [nvarchar](32) NULL,
+	[field] [nvarchar](32) NULL,
+	[value] [int] NULL,
+	[editable] [tinyint] NULL,
+	[created] [datetime] NULL
+) ON [PRIMARY];
+```
+
+Install and run server
 ```bash
 npm install
 node server.js
@@ -38,9 +49,19 @@ Open (create new) field
 node open_field.js 2017-06
 ```
 
-## Frontend
-
-Use a webclient goto `http://localhost:80`
+You can test form using a webclient. Goto `http://localhost:8066`
 
 
-## Qlik
+## Qlik (Desktop)
+
+### Setup extension
+Copy `extension/it` to Qlik Desktop extension folder.
+
+Edit `config.json` found in root folder of the extension if your backend is not found on `localhost`
+```js
+{
+    "url": "http://<SOME HOST HERE>:8066",
+}
+```
+
+### Setup data connection
