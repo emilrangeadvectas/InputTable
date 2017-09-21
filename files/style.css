@@ -1,14 +1,5 @@
 
-
-.qv-object-VarTable *{
-
-  -webkit-box-sizing:content-box;
-  -moz-box-sizing:content-box;
-  box-sizing:content-box;
-}
-
-.qv-object-VarTable .root_table {
-}
+*{font-family: Arial, Helvetica, sans-serif}
 
 button {
   display:inline;
@@ -33,17 +24,21 @@ table{
 
 }
 th{
-  padding: 7px;
-  border-right: 1px solid #e6e6e6;
-  border-top: 1px solid #e6e6e6;
-  border-bottom: 1px solid #bbb;
-  font-size: 15p;
-  font-weight:normal;
-  text-align:right;
-  border-right: 1px solid #e6e6e6;
+    font-weight:bold;
+    font-size: 14px;
+    color: #575757;
+    border-bottom: 2px solid #575757;
+    padding: 8px;
   
 }
 
+td{
+    font-size: 14px;
+    color: #575757;
+    border-bottom: 2px solid #575757;  
+}
+
+td.key{text-align:left; padding-left:20px; font-size:13px}
 
 table {
     border-collapse: collapse;
@@ -64,10 +59,7 @@ button{
   border-top: 1px solid #e6e6e6;
 }
 
-input{
-	text-align:right
-}
-
+.error{background:#fcc !important;}
 
 
 body {
@@ -112,13 +104,17 @@ body {
 
 
 td{
-  padding: 3px;
-  border-right: 1px solid #e6e6e6;
-  border-bottom: 1px solid #e6e6e6;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align:right
+  padding: 10px;
+  vertical-align: center;
+  text-align: center;
+  border-bottom: 2px solid #f5ecf7;
 }
+
+tr:nth-child(even) td{
+  background: #fff9ff
+}
+
+input{width:100px;height:20px}
 
 .row::before {
   content: normal !important;
@@ -130,4 +126,12 @@ td{
 
 .scroll_dummy {
   height: 18600px;
+}
+
+
+input[type="text"]{
+	text-align:center;
+    background: #fff;
+    border: 1px solid #888;
+    border-radius: 3px;
 }

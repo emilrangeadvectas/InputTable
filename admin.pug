@@ -1,0 +1,27 @@
+html
+  head
+    title MB-input
+  body
+    link(rel="stylesheet",type="text/css",href="/style.css")
+    a(href='/') back to index
+    h1 Admin
+    form(method='post',action='/admin/create_group_plan')
+      input(type='text',name='name')
+      input(type='submit',value='create')
+    h2 group plans
+    ul
+      each val, index in group_plans
+        li
+          h3=val.name
+          input(type='button', value='lock and export', disabled=true)
+          ul
+            if val.users_plans.length != 0
+              each val2, index2 in val.users_plans
+                li=val2.name+' '
+                  if val2.status == 1
+                    b done
+                  if val2.status == 0
+                    b started
+            else
+              li
+                i (no plans created yet)

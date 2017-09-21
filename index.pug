@@ -3,8 +3,6 @@ html
     title MB-input
   body
     link(rel="stylesheet",type="text/css",href="/style.css")
-    style(type="text/css").
-      .error{background:#fdd}
     script.
       function submit_form()
       {
@@ -21,10 +19,21 @@ html
                   each val2, index in val
                     if val2.form
                       td
-                        input(type=text, value=val2.value, name=val2.form, class=val2.error ? 'error' : 'plain')
+                        input(type='text', value=val2.value, name=val2.form, class=val2.error ? 'error' : 'plain')
                         input(type='hidden', value=val2.value, name='_'+val2.form)
                     else
-                      td= val2.value
+                      if index==0
+                        td(class='key')=val2.value
+                      else 
+                        td= val2.value
                   td
       //input(type='button' onclick="submit_form()")
       input(type='submit', style="display:none")
+    form(method='POST',action='/lock_plan')
+      input(type='hidden', name='group_plan_id' value=group_plan_id)
+      input(type='submit', value="lock")
+    br
+    a(href='/logout') logout
+    div=user
+    if is_admin
+      a(href='/admin') admin page

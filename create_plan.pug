@@ -1,0 +1,17 @@
+html
+  head
+    title InputTable
+  body
+    link(rel="stylesheet",type="text/css",href="/style.css")
+    h1 Create plan
+    p There is no plan connected to your user
+    form(method='post',action='/create_plan',id="form")
+      select(name='id')
+        option(value='') (select plan)
+        each val, index in group_plans
+          option(value=val.id)=val.name
+      input(type='submit', value="Create plan")
+    a(href='/logout') logout
+    div=is_admin
+    if is_admin
+      a(href='/admin') admin page
