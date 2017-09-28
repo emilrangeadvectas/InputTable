@@ -8,8 +8,26 @@ html
       {
         document.getElementById('form').submit()
       }
-    form(method='POST',action='/',id="form")
-      table
+    header(class=is_locked ? 'locked' : '')
+      div(class='login_info')
+        b=user+' '
+        a(href='/logout') logout
+        br
+        if is_admin
+        a(href='/admin') admin page
+      if is_locked
+        form(method='POST',action='/unlock_plan')
+          input(type='hidden', name='group_plan_id' value=group_plan_id)
+          input(type='submit', value="unlock")
+      else
+        form(method='POST',action='/lock_plan')
+          input(type='hidden', name='group_plan_id' value=group_plan_id)
+          input(type='submit', value="lock")
+      h1=group_plan_name
+      a(href='/plans/') Plan view
+      div(class='end')
+    form(method='POST',action='/plans/'+group_plan_id,id="form")
+      table(class='input')
           tr
               each val, index in matrix.headers
                   th(width="120")= val
@@ -25,15 +43,9 @@ html
                       if index==0
                         td(class='key')=val2.value
                       else 
-                        td= val2.value
+                        td 
+                          input(type='text', value=val2.value, name=val2.form, disabled='')
                   td
       //input(type='button' onclick="submit_form()")
       input(type='submit', style="display:none")
-    form(method='POST',action='/lock_plan')
-      input(type='hidden', name='group_plan_id' value=group_plan_id)
-      input(type='submit', value="lock")
-    br
-    a(href='/logout') logout
-    div=user
-    if is_admin
-      a(href='/admin') admin page
+    

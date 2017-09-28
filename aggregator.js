@@ -1,9 +1,12 @@
 function get_all_field_for_key(key)
 {
     var r = [
-        {"key":key,"field":"01","value":150,editable:false},
-        {"key":key,"field":"02","value": key==="coconut" ? 134 : 123,editable:false},
-        {"key":key,"field":"03","value":107,editable: key==="cherry" ? false : true},
+//        {"key":key,"field":"01","value":150,editable:false},
+//        {"key":key,"field":"02","value": key==="coconut" ? 134 : 123,editable:false},
+//        {"key":key,"field":"03","value":107,editable: key==="cherry" ? false : true},
+        {"key":key,"field":"01","value":null},
+        {"key":key,"field":"02","value":null},
+        {"key":key,"field":"03","value":null},
         {"key":key,"field":"04","value":null},
         {"key":key,"field":"05","value":null},
         {"key":key,"field":"06","value":null},

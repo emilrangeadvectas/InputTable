@@ -1,0 +1,30 @@
+html
+  head
+    title InputTable
+  body
+    link(rel="stylesheet",type="text/css",href="/style.css")
+    h1 Plans
+    table(border=1)
+      tr
+        th name    
+        th status
+        th
+      each val, index in plans
+        tr
+          td
+            if val['status']!=-1
+              a(href='/plans/'+val['group_plan_id'])=val['name']
+            else
+              =val['name']
+          if val['status']==0
+            td open
+          if val['status']==1
+            td locked/ready
+          if val['status']==-1
+            td not created
+          td
+            if val['status']==-1
+              form(method='POST', action='create_plan')
+                input(type='hidden', name='id', value=val['group_plan_id'])
+                input(type='submit', value='create')
+          
