@@ -3,25 +3,25 @@ html
     title MB-input
   body
     link(rel="stylesheet",type="text/css",href="/style.css")
-    a(href='/') back to index
-    h1 Admin
-    form(method='post',action='/admin/create_group_plan')
+    include include/head.pug
+    h2 User group plans
+    h3 Create new group plan
+    form(method='post',action='/admin/create_group_plan' class="standard_form")
       input(type='text',name='name')
       input(type='submit',value='create')
-    h2 group plans
-    ul
-      each val, index in group_plans
-        li
-          h3=val.name
-          input(type='button', value='lock and export', disabled=true)
-          ul
-            if val.users_plans.length != 0
-              each val2, index2 in val.users_plans
-                li=val2.name+' '
-                  if val2.status == 1
-                    b done
-                  if val2.status == 0
-                    b started
-            else
-              li
-                i (no plans created yet)
+    h3 User group plan status/handler
+    table(class="standard")
+        tr
+            each val in theaders
+                if val == "name"
+                    th Group plan
+                else
+                    th=val
+        each val in group_plans
+            tr
+                each h in theaders
+                    td
+                        if h=="export"
+                            input(type='button', disabled='', value='export')
+                        else
+                            =val[h]

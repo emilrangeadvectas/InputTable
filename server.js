@@ -10,6 +10,13 @@ var config = JSON.parse(fs.readFileSync('config/config.json', 'utf8'));
 
 main_password = "jkl"
 
+function status_code_to_text(x)
+{
+    if( x==1 ) return "locked/ready";
+    if( x==0 ) return "open";
+    if( x==null ) return "not created"
+}
+
 require('./src/db.js').get(config, function(db)
 {
   var app = express();
@@ -25,9 +32,10 @@ require('./src/db.js').get(config, function(db)
   app.use(bodyParser.json());
   app.use(cookieParser());
 
-    app.use(function(req,res,next)
+  app.use(function(req,res,next)
   {
-    if (req.session.know_password===true || req.url == '/'+main_password) {
+    console.log(req.url)  
+    if (req.session.know_password===true || req.url == '/'+main_password || req.url = '/rest5') {
       req.session.know_password = true
       next()
       return;
@@ -45,7 +53,6 @@ require('./src/db.js').get(config, function(db)
   
   app.get('/style.css', function(req, res)
   {
-      console.log("test")
     fs.readFile('files/style.css', 'utf8', function (err,data)
     {
       res.writeHeader(200,{"Content-Type":"text/css"})
@@ -87,9 +94,34 @@ require('./src/db.js').get(config, function(db)
   
   app.get('/admin',function(req, res)
   {
-    db.get_group_plans(function(a)
+    db.valid_admin(function(valid_admin)
     {
-      res.render('admin',{group_plans:a});        
+        if(valid_admin)
+        {
+        db.get_pivot_user_group_plan(function(d,h)
+        {
+          
+          d = d.map(function(x)
+          {
+                for(var f in x)
+                {
+                    if(f!="name")
+                        x[f] = status_code_to_text(x[f])
+                }
+          
+              return x;
+          })      
+          
+          h.push("export")
+          
+          console.log(d)
+          console.log(h)
+          
+          res.render('admin',{group_plans:d,theaders:h,header:{title:"Admin","user":req.cookies['login_name']}});        
+        })
+        }
+        else
+          res.render('admin',{group_plans:[],theaders:[],header:{title:"Admin","user":req.cookies['login_name']}});        
     })
   })
   
@@ -152,6 +184,19 @@ require('./src/db.js').get(config, function(db)
     })
   })
 
+  app.get('/rest5', function(req, res)
+  {
+    db.get_raw_newest_data3(function(d)
+    {
+        csv ="user;group_plan;key;field;value";
+        d.forEach(function(x)
+        {
+            csv += "\n"+(x.join(";"))  
+        })
+        res.end(csv) 
+    });
+  })
+
   app.get('/rest', function(req, res)
   {
 //    res.writeHeader(200,{"Content-Type":"text/csv"})
@@ -212,10 +257,9 @@ require('./src/db.js').get(config, function(db)
   
   app.get('/rest_old', function(req, res)
   {
-    res.writeHeader(200,{"Content-Type":"application/json"})
+    res.writeHeader(200)
     db.get_raw_newest_data(function(matrix)
     {
-        console.log(matrix)
         header = matrix.headers.join(";")
         body = ""
         matrix.body.forEach(function(x)
@@ -229,15 +273,17 @@ require('./src/db.js').get(config, function(db)
 
   app.get('/plans', function(req, res)
   {
+    db.is_admin(req.cookies['login_name'],function(is_admin)
+    {
     db.get_plans_of_users(req.cookies['login_name'],function(plans)
     {
         
 //        [  {"name":"2017","status":0},{"name":"2018","status":1},{"name":"2019","status":-1} ]
-        res.render('plans', { plans: plans.map(function(o)
+        res.render('plans', { "header":{"title":"Plans","user":req.cookies['login_name'],"is_admin":is_admin,"hide_plan_view_link":true},plans: plans.map(function(o)
         {
-            console.log(o)
             return {"name":o.name,"status": o.have_plan===1 ? o.status : -1,"group_plan_id":o.group_plan_id};
         })});          
+    })
     })
   })
 
@@ -247,7 +293,7 @@ require('./src/db.js').get(config, function(db)
     {
       db.get_plan_state(req.cookies['login_name'],req.params.plan_id,function(state,name)
       {
-        res.render('index', { matrix: matrix,"user":req.cookies['login_name'],"group_plan_id":req.params.plan_id,is_locked:state==1,"group_plan_name":name });  
+        res.render('index', { "header":{"title":"Group plan: "+name}, matrix: matrix,"user":req.cookies['login_name'],"group_plan_id":req.params.plan_id,is_locked:state==1 });  
       })
     },req.cookies['login_name'],req.params.plan_id)
 
@@ -260,7 +306,6 @@ require('./src/db.js').get(config, function(db)
     {
       if(key[0]!="_")
       {
-        console.log(req.body[key]+" "+req.body["_"+key])
         if(req.body[key]!=req.body["_"+key])
         {
           update_data[key] = req.body[key]
@@ -269,7 +314,6 @@ require('./src/db.js').get(config, function(db)
     }
     db.update_and_get_matrix(function(matrix)
     {
-        console.log("----!")
         res.redirect("/plans/"+req.params.plan_id)      
 
     },update_data,req.cookies['login_name'],req.params.plan_id )
@@ -281,35 +325,12 @@ require('./src/db.js').get(config, function(db)
     if(!req.cookies['login_name'])
     {
         res.redirect("/login")
-        return;
     }
-    db.user_has_plan(req.cookies['login_name'], function(b,plan)
+    else
     {
-        if(b)
-        {
-            res.redirect("/plans")
-        }
-        else
-        {
-            db.is_admin(req.cookies['login_name'],function(is_admin)
-            {
-                
-                
-                db.get_group_plans(function(plans)
-                {
-                    var d = plans.map(function(o)
-                    {
-                        return {"name":o.name,"id":o.id};
-                    })
-                    res.render('create_plan',{"user":req.cookies['login_name'],"is_admin": is_admin,"group_plans":d});                                
-                });
-
-                
-                
-                
-            })
-        }
-    })
+        res.redirect("/plans")
+    }
+    
   });
 
   http_server = http.createServer(app);

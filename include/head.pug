@@ -1,0 +1,23 @@
+header(class=is_locked ? 'locked' : '')
+ div(class='login_info')
+  b=header.user+' '
+  a(href='/logout') logout
+  if header.is_admin
+   br
+   a(href='/admin') admin page
+  if header.hide_plan_view_link==undefined
+    br
+    a(href='/plans/') Plan view
+
+ if group_plan_id
+  if is_locked
+   form(method='POST',action='/unlock_plan')
+    input(type='hidden', name='group_plan_id' value=group_plan_id)
+    input(type='submit', value="unlock")
+  else
+   form(method='POST',action='/lock_plan')
+    input(type='hidden', name='group_plan_id' value=group_plan_id)
+    input(type='submit', value="lock")
+ //h1=group_plan_name
+ h1=header.title
+ div(class='end')

@@ -20,6 +20,8 @@ TODO: lägg in den här query så att vi plockar den senaste (notera att vi kör
 // får det exitera dubletter? hur hanteras det (nu är det max värdet som räknas)
 // Vad händer om en post inte existerar
 
+// fel. skapa plan. gå in ändra värde. skapa ny plan. krashar
+
 get_next_table_name = function()
 {
     var text = "";
@@ -212,13 +214,11 @@ function build_matrix(callback,mssql,error,user,group_plan_id)
 
                         
                         if(x['form'].substring(0,2)==a){
-                            console.log("...")
-                            console.log(x['form']);
+
                         real_row[x['form']] = x;
                         }
                     })
                 })
-                console.log(real_row)
                 data.push(row)
 //                data.push(real_row)
               })
@@ -323,6 +323,46 @@ exports.get = function(config,callback)
             },data,user,group_plan_id)
         }
 
+        db.get_raw_newest_data3 = function(c)
+        {
+            var sql = "SELECT [user],[name],[table] FROM input_table AS it "+
+            "JOIN input_table_group_plans AS gp ON it.group_plan_id = gp.ID";
+
+            new mssql.Request()
+              .query(sql,function(err,r)
+              {
+                d = r.recordset;
+                
+                var g = function(x,c)
+                {
+                    var table_name = "input_table_"+x.table;
+
+                                            body = []
+
+                    sql = "SELECT _key, field, (SELECT TOP(1) value FROM "+table_name+" WHERE _key = d1._key AND field = d1.field ORDER BY created DESC) AS value FROM "+table_name+" AS d1 GROUP BY _key, field";
+                    new mssql.Request()
+                      .query(sql,function(err,recordsets)
+                      {
+                        recordsets.recordsets[0].forEach(function(i)
+                        {
+                            console.log(i)
+                            if(i['value']!==null)
+                                body.push([x['user'],x['name'],i['_key'],i['field'],i['value']])
+                        })
+                        c();
+                      }) 
+
+                      
+                }
+
+                async.each(d,g,function(){c(body)});
+                
+
+              })
+            
+
+        }
+        
         db.add_key = function(key,on_field,done)
         {
             var sql = "INSERT INTO "+table_name+" ("+field+","+table_key+","+editable+") VALUES ('"+on_field+"','"+key+"',1)";
@@ -346,11 +386,9 @@ exports.get = function(config,callback)
                       {
                           async.each(ui,function(uu2,iei2)
                           {
-                                                                    console.log("?")
 
                                   get_total(i.ID,uu2,function(t)
                                   {
-                                      console.log("!")
                                       ll.push([i.name,uu2,t])
                                       iei2();
                                   })
@@ -377,8 +415,7 @@ exports.get = function(config,callback)
 
         db.get_plan_state = function(user,group_plan_id,callback)
         {
-            console.log(user)
-            console.log(group_plan_id)
+
             
             var sql = "SELECT status, name FROM input_table JOIN input_table_group_plans ON input_table_group_plans.id = input_table.group_plan_id WHERE [user] LIKE @user AND group_plan_id = @group_plan_id";
             new mssql.Request()
@@ -386,8 +423,7 @@ exports.get = function(config,callback)
               .input('group_plan_id',mssql.BigInt,group_plan_id)
               .query(sql,function(err,r)
               {
-                  console.log(err)
-                  console.log(r)
+
                   callback(r.recordset[0]['status'], r.recordset[0]['name']);              
               })            
         }
@@ -486,7 +522,10 @@ exports.get = function(config,callback)
 
         db.get_plans_of_users = function(user,callback)
         {
-            sql = "SELECT CASE WHEN [user] is null THEN 0 ELSE 1 END as have_plan, name, status, [user],  id AS group_plan_id FROM input_table_group_plans LEFT JOIN input_table ON input_table_group_plans.ID = input_table.group_plan_id WHERE [user] = @user or [user] is null;"
+            sql = "SELECT CASE WHEN [status] is null THEN 0 ELSE 1 END as have_plan, [name],[status],[user],ID AS group_plan_id "+
+                  "FROM input_table_group_plans AS gp "+
+                  "LEFT JOIN input_table AS it ON it.group_plan_id=gp.ID AND [user] = @user ";
+                  
                  new mssql.Request()
                   .input('user',mssql.VarChar(255),user)
                   .query(sql,function(err,recordsets)
@@ -502,7 +541,6 @@ exports.get = function(config,callback)
                 body = []
                 var x = function(o,callback)
                 {
-                    console.log(o)
                     plan_id = o.table;
                     status = o.status;
                     group_plan_name = o.name;
@@ -604,6 +642,68 @@ exports.get = function(config,callback)
 
             })
         };
+
+        db.valid_admin = function(callback)
+        {
+            new mssql.Request()
+                .query("SELECT COUNT(*) AS c FROM input_table",function(err,recordsets)
+                {
+                    callback(recordsets.recordset[0].c>0);
+                    
+                });
+        }
+        
+        db.get_pivot_user_group_plan = function(callback)
+        {
+
+            
+        
+            var sql = "DECLARE @PivotColumnHeaders VARCHAR(MAX)"+
+                      "SELECT @PivotColumnHeaders = "+
+                      "COALESCE("+
+                      "    @PivotColumnHeaders + ',[' + [name] + ']',"+
+                      "    '[' + [name] + ']'"+
+                      "   )"+
+                      "  FROM input_table_group_plans;"+
+
+                       " DECLARE @PivotTableSQL NVARCHAR(MAX)"+
+                       " SET @PivotTableSQL = N'"+
+                       "   SELECT * FROM  (SELECT [user], [status],[name] FROM input_table JOIN input_table_group_plans ON input_table_group_plans.ID = input_table.group_plan_id) AS r"+
+                       "   PIVOT (   max([status]) for [name] IN ("+
+                       "    ' + @PivotColumnHeaders + '"+
+                       "   ) ) as t;"+
+                       " '"+
+                       " EXECUTE(@PivotTableSQL)"
+                       
+                sql = "DECLARE @PivotColumnHeaders VARCHAR(MAX)"+
+                      "SELECT @PivotColumnHeaders = "+
+                      "COALESCE("+
+                      "    @PivotColumnHeaders + ',[' + [user] + ']',"+
+                      "    '[' + [user] + ']'"+
+                      "   )"+
+                      "  FROM ( SELECT [user],SUM([status]) as d FROM input_table GROUP BY [user]) as d;"+
+
+					  "DECLARE @PivotTableSQL NVARCHAR(MAX)"+
+                      "  SET @PivotTableSQL = N'"+
+                      "    SELECT * FROM  (SELECT [user], [status],[name] FROM input_table RIGHT JOIN input_table_group_plans ON input_table_group_plans.ID = input_table.group_plan_id) AS r"+
+                      "    PIVOT (   max([status]) for [user] IN ("+
+                      "     ' + @PivotColumnHeaders + '"+
+                      "    ) ) as t;"+
+                      "  '"+
+                      "  EXECUTE(@PivotTableSQL)";
+                        
+
+            new mssql.Request()
+                .query(sql,function(err,recordsets)
+                {
+                    new mssql.Request()
+                        .query("SELECT [user],2 as sort_column FROM (SELECT [user],SUM([status]) as d FROM input_table GROUP BY [user]) as y UNION SELECT 'name', 1 as sort_column ORDER BY sort_column;",function(err,recordsets2)
+                        {
+                            console.log(recordsets2.recordset)
+                            callback(recordsets.recordset,recordsets2.recordset.map( function(x){ return x.user } ))                            
+                        })
+                })
+        }
         
         db.add_field = function(f,done)
         {
@@ -641,7 +741,6 @@ exports.get = function(config,callback)
               .input('table',mssql.VarChar(255),user)
               .query(sql,function(err,recordsets)
               {
-                  console.log(recordsets)
                   callback(recordsets.recordset.length>0, recordsets.recordset.length>0 ? recordsets.recordset[0]['group_plan_id'] : null )
               })            
         }

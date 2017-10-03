@@ -8,24 +8,7 @@ html
       {
         document.getElementById('form').submit()
       }
-    header(class=is_locked ? 'locked' : '')
-      div(class='login_info')
-        b=user+' '
-        a(href='/logout') logout
-        br
-        if is_admin
-        a(href='/admin') admin page
-      if is_locked
-        form(method='POST',action='/unlock_plan')
-          input(type='hidden', name='group_plan_id' value=group_plan_id)
-          input(type='submit', value="unlock")
-      else
-        form(method='POST',action='/lock_plan')
-          input(type='hidden', name='group_plan_id' value=group_plan_id)
-          input(type='submit', value="lock")
-      h1=group_plan_name
-      a(href='/plans/') Plan view
-      div(class='end')
+    include include/head.pug
     form(method='POST',action='/plans/'+group_plan_id,id="form")
       table(class='input')
           tr
