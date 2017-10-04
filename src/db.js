@@ -778,11 +778,22 @@ exports.get = function(config,callback)
         // -----
 
         
-        db.get_user = function(c){c();}
-        
-        db.get_division_group_plan_for_user = function(callback)
+        db.get_user = function(user_id,c)
         {
-            user_id = 1;
+            var sql = "SELECT [id] FROM input_table_users WHERE username = @username"
+
+            new mssql.Request()
+                .input('username',mssql.VarChar(255),user_id)
+                .query(sql,function(err,r)
+                {
+                    c(r.recordset)
+                });
+            
+        }
+
+        
+        db.get_division_group_plan_for_user = function(user_id,callback)
+        {
             var sql = "DECLARE @PivotColumnHeaders VARCHAR(MAX) "+
                       "SELECT @PivotColumnHeaders = "+
                       "COALESCE( "+
@@ -793,7 +804,7 @@ exports.get = function(config,callback)
                       " DECLARE @PivotTableSQL NVARCHAR(MAX) "+
 
                       "SET @PivotTableSQL = N' "+
-                      "SELECT * FROM (SELECT gp.name AS gp_name, div.name AS d_id, CONCAT(it.[id],''|'',it.[status]) AS f FROM input_table_group_plans AS gp "+
+                      "SELECT * FROM (SELECT gp.name AS gp_name, div.name AS d_id, CONCAT(it.[id],''|'',it.[status],''|'',1) AS f FROM input_table_group_plans AS gp "+
                       "LEFT JOIN input_table AS it ON it.group_plan_id=gp.ID "+
                       "JOIN input_table_division AS div ON div.id = it.division_id "+
                       ") AS r "+

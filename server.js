@@ -83,8 +83,9 @@ require('./src/db.js').get(config, function(db)
     n = req.body['login_name'];
     if(n)
     {
-        db.get_user(function(a)
+        db.get_user(n,function(a)
         {
+            res.cookie('login_user_id',a[0].id)
             res.cookie('login_name',n)
             res.redirect("/")        
             
@@ -341,7 +342,7 @@ require('./src/db.js').get(config, function(db)
     {
         db.is_admin(req.cookies['login_name'],function(is_admin)
         {
-            db.get_division_group_plan_for_user(function(d)
+            db.get_division_group_plan_for_user(req.cookies['login_user_id'],function(d)
             {
                 
                 d.body = d.body.map(function(x)
