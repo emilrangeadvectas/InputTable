@@ -114,15 +114,15 @@ function get_if_form(x,y,rs)
   return r;
 }
 
-function get_user_plan(mssql,user,group_plan_id,callback)
+function get_user_plan(mssql,user,plan_id,callback)
 {
     //var sql = "SELECT [table], status FROM input_table WHERE [user] = @user";
-    var sql = "SELECT [table], status, name FROM input_table JOIN input_table_group_plans ON input_table.group_plan_id = input_table_group_plans.id  WHERE [user] = @user AND group_plan_id = @group_plan_id"
+    var sql = "SELECT [table], status, name FROM input_table JOIN input_table_group_plans ON input_table.group_plan_id = input_table_group_plans.id  WHERE input_table.[id] = @plan_id"
     new mssql.Request()
-	  .input('user',mssql.VarChar(255),user)
-	  .input('group_plan_id',mssql.BigInt,group_plan_id)
+	  .input('plan_id',mssql.VarChar(255),plan_id)
       .query(sql,function(err,recordsets)
       {
+          console.log(err)
         var t = recordsets.recordsets[0][0].table;
         var s = recordsets.recordsets[0][0].status;
         var n = recordsets.recordsets[0][0].name;
@@ -151,9 +151,9 @@ function get_user_plans(mssql,user,callback)
       })    
 }
 
-function build_matrix(callback,mssql,error,user,group_plan_id)
+function build_matrix(callback,mssql,error,user,_plan_id)
 {
-    get_user_plan(mssql,user,group_plan_id,function(plan_id,status)
+    get_user_plan(mssql,user,_plan_id,function(plan_id,status)
     {
       var table_name = "input_table_"+plan_id;
 
@@ -413,14 +413,13 @@ exports.get = function(config,callback)
 
         }
 
-        db.get_plan_state = function(user,group_plan_id,callback)
+        db.get_plan_state = function(user,plan_id,callback)
         {
 
             
-            var sql = "SELECT status, name FROM input_table JOIN input_table_group_plans ON input_table_group_plans.id = input_table.group_plan_id WHERE [user] LIKE @user AND group_plan_id = @group_plan_id";
+            var sql = "SELECT status, name FROM input_table JOIN input_table_group_plans ON input_table_group_plans.id = input_table.group_plan_id WHERE input_table.[id] = @plan_id ";
             new mssql.Request()
-              .input('user',mssql.VarChar(255),user)
-              .input('group_plan_id',mssql.BigInt,group_plan_id)
+              .input('plan_id',mssql.BigInt,plan_id)
               .query(sql,function(err,r)
               {
 
@@ -749,7 +748,72 @@ exports.get = function(config,callback)
         {
             mssql.close()
         }
-    
+
+        // -----
+        db.get_division_user_state = function(callback)
+        {
+            var sql = "DECLARE @PivotColumnHeaders VARCHAR(MAX) "+
+                      "SELECT @PivotColumnHeaders = "+
+                      "COALESCE( "+
+                      "    @PivotColumnHeaders + ',[' + [name] + ']', "+
+                      "    '[' + [name] + ']' "+
+                      "   ) "+
+                      " FROM input_table_division; "+
+                      " DECLARE @PivotTableSQL NVARCHAR(MAX) "+
+
+                      "SET @PivotTableSQL = N' "+
+                      "SELECT * FROM  (  SELECT [username], [rights],[name] FROM input_table_divsion_user JOIN input_table_users ON input_table_divsion_user.user_id = input_table_users.id JOIN input_table_division ON input_table_divsion_user.divions_id = input_table_division.id) AS r "+
+                      "PIVOT (   max([rights]) for [name] IN ("+
+                      "' + @PivotColumnHeaders + '"+
+                      "   ) ) as t; "+
+                      "  '"+
+                      "  EXECUTE(@PivotTableSQL) ";
+
+            new mssql.Request()
+                .query(sql,function(err,r)
+                {                    
+                    callback( {"body":r.recordset, "header":Object.keys(r.recordset[0]) })
+                })      
+        }
+        // -----
+
+        
+        db.get_user = function(c){c();}
+        
+        db.get_division_group_plan_for_user = function(callback)
+        {
+            user_id = 1;
+            var sql = "DECLARE @PivotColumnHeaders VARCHAR(MAX) "+
+                      "SELECT @PivotColumnHeaders = "+
+                      "COALESCE( "+
+                      "    @PivotColumnHeaders + ',[' + [name] + ']', "+
+                      "    '[' + [name] + ']' "+
+                      "   ) "+
+                      " FROM ( SELECT MAX([name]) AS [name] FROM input_table_division JOIN input_table_divsion_user ON input_table_divsion_user.divions_id = input_table_division.id WHERE input_table_divsion_user.[user_id] = @user_id GROUP BY [name]  ) AS d"+
+                      " DECLARE @PivotTableSQL NVARCHAR(MAX) "+
+
+                      "SET @PivotTableSQL = N' "+
+                      "SELECT * FROM (SELECT gp.name AS gp_name, div.name AS d_id, CONCAT(it.[id],''|'',it.[status]) AS f FROM input_table_group_plans AS gp "+
+                      "LEFT JOIN input_table AS it ON it.group_plan_id=gp.ID "+
+                      "JOIN input_table_division AS div ON div.id = it.division_id "+
+                      ") AS r "+
+                      "PIVOT (   max([f]) for [d_id] IN ( "+
+                      "' + @PivotColumnHeaders + '"+
+                      "   ) ) as t; "+
+                      "  ' "+
+                      "  EXECUTE(@PivotTableSQL) ";
+
+                      
+            new mssql.Request()
+                .input('user_id',mssql.VarChar(255),user_id)
+                .query(sql,function(err,r)
+                {            
+                    callback( {"body":r.recordset, "header":Object.keys(r.recordset[0]) })
+                })          
+
+        }
+
+        
         callback(db)
   })
 }

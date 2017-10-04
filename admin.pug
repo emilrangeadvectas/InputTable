@@ -25,3 +25,13 @@ html
                             input(type='button', disabled='', value='export')
                         else
                             =val[h]
+
+    table(class="standard")
+        tr
+            each val in division_user.header
+                th=val
+        each val in division_user.body
+            tr
+                each val2 in val
+                    td=val2
+                            

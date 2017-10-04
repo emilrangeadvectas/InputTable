@@ -4,6 +4,24 @@ html
   body
     link(rel="stylesheet",type="text/css",href="/style.css")
     include include/head.pug
+    
+    
+    table(class="standard")
+        tr
+            each val in plans.header
+                th=val
+        each val in plans.body
+            tr
+                each val2 in val
+                    td
+                        if (val2===null)
+                            ='.'
+                        else if (typeof val2 == 'string') 
+                            =val2
+                        else
+                            a(href='/plans/'+val2[0])=val2[1]
+
+                    
     table(class="standard")
       tr
         th name    

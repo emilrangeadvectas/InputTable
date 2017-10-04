@@ -35,7 +35,7 @@ require('./src/db.js').get(config, function(db)
   app.use(function(req,res,next)
   {
     console.log(req.url)  
-    if (req.session.know_password===true || req.url == '/'+main_password || req.url = '/rest5') {
+    if (req.session.know_password===true || req.url == '/'+main_password || req.url == '/rest5' || req.url == '/iframe') {
       req.session.know_password = true
       next()
       return;
@@ -83,47 +83,24 @@ require('./src/db.js').get(config, function(db)
     n = req.body['login_name'];
     if(n)
     {
-        res.cookie('login_name',n)
-        res.redirect("/")        
+        db.get_user(function(a)
+        {
+            res.cookie('login_name',n)
+            res.redirect("/")        
+            
+        })
     }
     else
     {
         res.redirect("/login")        
     }
   })
-  
-  app.get('/admin',function(req, res)
+
+  app.get('/iframe',function(req, res)
   {
-    db.valid_admin(function(valid_admin)
-    {
-        if(valid_admin)
-        {
-        db.get_pivot_user_group_plan(function(d,h)
-        {
-          
-          d = d.map(function(x)
-          {
-                for(var f in x)
-                {
-                    if(f!="name")
-                        x[f] = status_code_to_text(x[f])
-                }
-          
-              return x;
-          })      
-          
-          h.push("export")
-          
-          console.log(d)
-          console.log(h)
-          
-          res.render('admin',{group_plans:d,theaders:h,header:{title:"Admin","user":req.cookies['login_name']}});        
-        })
-        }
-        else
-          res.render('admin',{group_plans:[],theaders:[],header:{title:"Admin","user":req.cookies['login_name']}});        
-    })
+    res.render('iframe');        
   })
+  
   
   app.get('/login', function(req, res)
   {
@@ -184,6 +161,11 @@ require('./src/db.js').get(config, function(db)
     })
   })
 
+  app.get('/test', function(req, res)
+  {
+
+  })
+  
   app.get('/rest5', function(req, res)
   {
     db.get_raw_newest_data3(function(d)
@@ -271,21 +253,6 @@ require('./src/db.js').get(config, function(db)
     })
   })
 
-  app.get('/plans', function(req, res)
-  {
-    db.is_admin(req.cookies['login_name'],function(is_admin)
-    {
-    db.get_plans_of_users(req.cookies['login_name'],function(plans)
-    {
-        
-//        [  {"name":"2017","status":0},{"name":"2018","status":1},{"name":"2019","status":-1} ]
-        res.render('plans', { "header":{"title":"Plans","user":req.cookies['login_name'],"is_admin":is_admin,"hide_plan_view_link":true},plans: plans.map(function(o)
-        {
-            return {"name":o.name,"status": o.have_plan===1 ? o.status : -1,"group_plan_id":o.group_plan_id};
-        })});          
-    })
-    })
-  })
 
   app.get('/plans/:plan_id', function(req, res)
   {
@@ -314,8 +281,10 @@ require('./src/db.js').get(config, function(db)
     }
     db.update_and_get_matrix(function(matrix)
     {
-        res.redirect("/plans/"+req.params.plan_id)      
-
+      db.get_plan_state(req.cookies['login_name'],req.params.plan_id,function(state,name)
+      {
+        res.render('index', { "header":{"title":"Group plan: "+name}, matrix: matrix,"user":req.cookies['login_name'],"group_plan_id":req.params.plan_id,is_locked:state==1 });  
+      })
     },update_data,req.cookies['login_name'],req.params.plan_id )
   })
   
@@ -333,6 +302,73 @@ require('./src/db.js').get(config, function(db)
     
   });
 
-  http_server = http.createServer(app);
-  http_server.listen(8066)
+    // ---
+    app.get('/admin',function(req, res)
+    {
+        db.valid_admin(function(valid_admin)
+        {
+            if(valid_admin)
+            {
+                db.get_pivot_user_group_plan(function(d,h)
+                {
+                    db.get_division_user_state(function(du)
+                    {
+                      
+                        d = d.map(function(x)
+                        {
+                            for(var f in x)
+                            {
+                                if(f!="name")
+                                    x[f] = status_code_to_text(x[f])
+                            }
+                            return x;
+                        })      
+                        h.push("export")            
+                        console.log(du)
+                        res.render('admin',{division_user:du,group_plans:d,theaders:h,header:{title:"Admin","user":req.cookies['login_name']}});        
+                    });
+                })
+            }
+            else
+            {
+                res.render('admin',{group_plans:[],theaders:[],header:{title:"Admin","user":req.cookies['login_name']}});        
+            }
+        })
+    })
+
+
+    app.get('/plans', function(req, res)
+    {
+        db.is_admin(req.cookies['login_name'],function(is_admin)
+        {
+            db.get_division_group_plan_for_user(function(d)
+            {
+                
+                d.body = d.body.map(function(x)
+                {
+                    for(var f in x)
+                    {
+                        console.log(f)
+                        if(f!="gp_name")
+                        {
+                            if(x[f]!==null)
+                            {
+                                x[f] = x[f].split("|")
+                                x[f][1] = status_code_to_text(x[f][1])
+                            }
+                            else
+                                x[f] = status_code_to_text(null)
+                        }
+                    }
+                    return x;
+                })
+                
+                res.render('plans', { plans:d,"header":{"title":"Plans","user":req.cookies['login_name'],"is_admin":is_admin,"hide_plan_view_link":true,}})                
+            })
+        })
+    })
+    // ---
+    
+    http_server = http.createServer(app);
+    http_server.listen(8066)
 });
