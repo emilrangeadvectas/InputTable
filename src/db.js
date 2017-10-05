@@ -791,6 +791,39 @@ exports.get = function(config,callback)
             
         }
 
+        db.get_new_plan = function(callback)
+        {
+            var sql = "WITH LevelCalculater ([parent_id],[id],[v], Level) "+
+                      "AS "+
+                      "( "+
+                      "    SELECT a.[parent_id], a.[id],CAST('10000' AS varchar(5)) AS v, "+
+                      "        0 AS Level "+
+                      "    FROM input_table_accounts AS a "+
+                      "    WHERE parent_id IS NULL "+
+                      "    UNION ALL "+
+                      "    SELECT a.[parent_id], a.[id], CAST(  concat( SUBSTRING(v,1,Level+1), [order],'000')  AS varchar(5)) as v, "+
+                      "        Level + LEN([order]) "+
+                      "    FROM input_table_accounts AS a "+
+                      "	INNER JOIN LevelCalculater AS d ON d.id = a.parent_id "+
+                      ") "+
+                      "SELECT v,a.id,a.name,d.level "+
+                      "FROM LevelCalculater AS d "+
+                      "JOIN input_table_accounts AS a ON d.id = a.id "+
+                      "ORDER BY v ";
+                      
+            new mssql.Request()
+                .query(sql,function(err,r)
+                {            
+                    callback( {"body":r.recordset, "header":Object.keys(r.recordset[0]) })
+                })          
+                
+                
+                //TODO: add sum. make som untion with sum table and give them some last order values. Or just add sum as account. I think add sum as account feels less hacky if we need to "make up" a order on it
+        }
+
+
+
+
         
         db.get_division_group_plan_for_user = function(user_id,callback)
         {
@@ -804,7 +837,7 @@ exports.get = function(config,callback)
                       " DECLARE @PivotTableSQL NVARCHAR(MAX) "+
 
                       "SET @PivotTableSQL = N' "+
-                      "SELECT * FROM (SELECT gp.name AS gp_name, div.name AS d_id, CONCAT(it.[id],''|'',it.[status],''|'',1) AS f FROM input_table_group_plans AS gp "+
+                      "SELECT * FROM (SELECT gp.name AS gp_name, div.name AS d_id, CONCAT(it.[id],''|'',it.[status]) AS f FROM input_table_group_plans AS gp "+
                       "LEFT JOIN input_table AS it ON it.group_plan_id=gp.ID "+
                       "JOIN input_table_division AS div ON div.id = it.division_id "+
                       ") AS r "+

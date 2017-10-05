@@ -60,6 +60,16 @@ require('./src/db.js').get(config, function(db)
       res.end()
     });
   })
+
+  app.get('/style2.css', function(req, res)
+  {
+    fs.readFile('files/style2.css', 'utf8', function (err,data)
+    {
+      res.writeHeader(200,{"Content-Type":"text/css"})
+      res.write(data)
+      res.end()
+    });
+  })
   
   app.post('/create_plan', function(req, res)
   {
@@ -97,6 +107,14 @@ require('./src/db.js').get(config, function(db)
     }
   })
 
+    app.get('/test7',function(req,res)
+    {
+        db.get_new_plan(function(x)
+        {
+            res.render('new_plan',{data:x.body});              
+        })
+    })
+  
   app.get('/iframe',function(req, res)
   {
     res.render('iframe');        

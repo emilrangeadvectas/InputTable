@@ -1,0 +1,32 @@
+html
+    head
+        link(rel="stylesheet",type="text/css",href="/style2.css")
+    table
+        tr
+            td
+        each val in data
+            if val['level']==2
+            
+                tr
+                    th(coslpan="8" class="space")            
+                tr
+                    td(colspan="2", class="void")
+                    th(colspan="6", class="header")=val['name']
+            else if val['level'] == 4
+                tr
+                    td(colspan="2", class="void")
+                    td(colspan="3" class="edge")=val['name']
+                    td
+                        input
+                    td
+                        input
+                    td
+                        input
+            else                    
+                tr(class="top")
+                    th(colspan="5")=val['name']
+                    th JAN
+                    th FEB
+                    th MAR
+                    
+    </tr>
