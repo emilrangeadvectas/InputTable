@@ -13,17 +13,7 @@ html
         each val in plans.body
             tr
                 each val2 in val
-                    td
-                        if (val2===null)
-                            ='.'
-                        else if (typeof val2 == 'string') 
-                            =val2
-                        else
-                            a(href='/plans/'+val2[0])=val2[1]
-
-                        if (typeof val2 != 'string') 
-                            if val2[0]==null
-                                input
+                    td=val2
     table(class="standard")
       tr
         th name    

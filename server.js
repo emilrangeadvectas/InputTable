@@ -386,7 +386,8 @@ require('./src/db.js').get(config, function(db)
         {
             db.get_division_group_plan_for_user(req.cookies['login_user_id'],function(d)
             {
-                
+
+                /*
                 d.body = d.body.map(function(x)
                 {
                     for(var f in x)
@@ -404,7 +405,9 @@ require('./src/db.js').get(config, function(db)
                         }
                     }
                     return x;
-                })
+                })*/
+                
+                //convert x|1(id)|1(status) to link to plan, c|1|1 to (group)(div) craete plan
                 
                 res.render('plans', { plans:d,"header":{"title":"Plans","user":req.cookies['login_name'],"is_admin":is_admin,"hide_plan_view_link":true,}})                
             })

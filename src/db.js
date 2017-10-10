@@ -906,20 +906,28 @@ exports.get = function(config,callback)
                       " FROM ( SELECT MAX([name]) AS [name] FROM input_table_division JOIN input_table_divsion_user ON input_table_divsion_user.divions_id = input_table_division.id WHERE input_table_divsion_user.[user_id] = @user_id GROUP BY [name]  ) AS d"+
                       " DECLARE @PivotTableSQL NVARCHAR(MAX) "+
 
+                      " DECLARE @user BIGINT; "+
+                      " SET @user_id = @user_id; "+
+                      
                       "SET @PivotTableSQL = N' "+
-                      "SELECT * FROM (SELECT gp.name AS gp_name, div.name AS d_id, CONCAT(it.[id],''|'',it.[status]) AS f FROM input_table_group_plans AS gp "+
-                      "LEFT JOIN input_table AS it ON it._group_plan_id=gp.ID "+
-                      "LEFT JOIN input_table_division AS div ON div.id = it._division_id "+
+                      "SELECT * FROM "+
+                      "( "+
+                      "SELECT itg.name AS gp_name, itd.name AS d_id, CASE WHEN status IS NULL THEN CONCAT(''c|'',itg.ID,''|'',itd.id) ELSE CONCAT(''x|'',it.id,''|'',it.status) END as f "+
+                      "FROM input_table_group_plans AS itg "+
+                      "JOIN input_table_divsion_user AS itdu ON [user_id]=' + @user_id + '  "+
+                      "JOIN input_table_division AS itd ON itdu.divions_id = itd.id "+
+                      "LEFT JOIN input_table AS it ON it._division_id = itd.id AND it._group_plan_id = itg.ID "+
                       ") AS r "+
                       "PIVOT (   max([f]) for [d_id] IN ( "+
-                      "' + @PivotColumnHeaders + '"+
-                      "   ) ) as t; "+
-                      "  ' "+
-                      "  EXECUTE(@PivotTableSQL) ";
+                      "' + @PivotColumnHeaders + ' "+
+                      ") ) as t; "+
+                      "' "+
+                      
+                      "EXECUTE(@PivotTableSQL) ";
 
                       
             new mssql.Request()
-                .input('user_id',mssql.VarChar(255),user_id)
+                .input('user_id',mssql.VarChar(255),user_id) //can we have this as a bigint some how. SET @user_id = @user_id do not seem to allow it (maybe we can cast it)
                 .query(sql,function(err,r)
                 {            
                     callback( {"body":r.recordset, "header":Object.keys(r.recordset[0]) })
