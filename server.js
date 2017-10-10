@@ -107,14 +107,38 @@ require('./src/db.js').get(config, function(db)
     }
   })
 
-    app.get('/test7',function(req,res)
+    app.post('/create_plan_',function(req,res)
     {
-        db.get_new_plan(function(x)
+
+    })
+    
+    app.get('/test7/:plan_id',function(req,res)
+    {
+        db.get_new_plan(req.params.plan_id,function(x)
         {
-            res.render('new_plan',{data:x.body});              
+            res.render('new_plan',{data:x.body,plan_id:req.params.plan_id});                              
         })
     })
-  
+
+    app.post('/test7/:plan_id',function(req,res)
+    {
+        var update_data = {}
+        for(key in req.body)
+        {
+          if(key[0]!="_")
+          {
+            if(req.body[key]!=req.body["_"+key])
+            {
+              update_data[key] = req.body[key]
+            }
+          }
+        }        
+        db.update_new_plan(req.params.plan_id,update_data,function()
+        {
+            res.redirect('/test7/'+req.params.plan_id)             
+        })
+    })
+    
   app.get('/iframe',function(req, res)
   {
     res.render('iframe');        

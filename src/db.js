@@ -791,7 +791,7 @@ exports.get = function(config,callback)
             
         }
 
-        db.get_new_plan = function(callback)
+        db.get_new_plan = function(plan_id,callback)
         {
             var sql = "WITH LevelCalculater ([parent_id],[id],[v], Level) "+
                       "AS "+
@@ -806,14 +806,54 @@ exports.get = function(config,callback)
                       "    FROM input_table_accounts AS a "+
                       "	INNER JOIN LevelCalculater AS d ON d.id = a.parent_id "+
                       ") "+
-                      "SELECT v,a.id,a.name,d.level "+
+                      "SELECT v,a.id,a.name,d.level,a.type "+
                       "FROM LevelCalculater AS d "+
                       "JOIN input_table_accounts AS a ON d.id = a.id "+
                       "ORDER BY v ";
+
+
+             sql    = "DROP TABLE IF EXISTS #temp; "+
+                      "DROP TABLE IF EXISTS #temp2; "+
+
+                      "WITH X ([root_id],[id],[type],[root_type],[parent_id]) "+
+                      "AS "+
+                      "( "+
+                      "SELECT [id] as root_id, [id],[type],a.type AS [root_type],[parent_id] "+
+                      "FROM input_table_accounts AS a "+
+                      "WHERE a.type = 1 OR a.type = 2 "+
+                      "UNION ALL "+
+                      "SELECT [root_id],a.[id],a.[type],[root_type],a.[parent_id] "+
+                      "FROM input_table_accounts AS a "+
+                      "INNER JOIN X AS d ON ([root_type]=2 and d.[parent_id] = a.[id] and a.[type]=2 ) OR ( [root_type]=1 and (( d.[parent_id] = a.[parent_id] AND a.id != d.id AND d.type = 1 ) OR d.[id] = a.[parent_id])) "+
+                      ") SELECT root_id, id INTO dbo.#temp FROM X WHERE NOT (root_id = id and type = 1 and root_type = 1) GROUP BY root_id, id; "+
+
+                      "SELECT * INTO dbo.#temp2 FROM  ( SELECT root_id AS id, SUM([value]) AS value, [month] FROM #temp AS x JOIN (SELECT input_table_input.* FROM input_table_input JOIN ( SELECT MAX(id) AS id FROM input_table_input WHERE _plan_id = @plan_id GROUP BY _accounts_id, [month] ) AS k ON k.id = input_table_input.id) AS iti ON iti._accounts_id = x.id GROUP BY root_id, [month] ) AS r "+
+                      "PIVOT (   max([value]) for [month] IN ([JAN],[FEB],[MAR],[APR],[MAY],[JUN],[JUL],[AUG],[SEP],[OCT],[NOV],[DEC]) ) as t; "+
+
+                      "WITH LevelCalculater ([parent_id],[id],[v], Level) "+
+                      "AS "+
+                      "( "+
+                      "SELECT a.[parent_id], a.[id],CAST('10000' AS varchar(5)) AS v, "+
+                      "0 AS Level "+
+                      "FROM input_table_accounts AS a "+
+                      "WHERE parent_id IS NULL "+
+                      "UNION ALL "+
+                      "SELECT a.[parent_id], a.[id], CAST(  concat( SUBSTRING(v,1,Level+1), [order],'000')  AS varchar(5)) as v, "+
+                      "Level + LEN([order]) "+
+                      "FROM input_table_accounts AS a "+
+                      "INNER JOIN LevelCalculater AS d ON d.id = a.parent_id "+
+                      ") "+
+                      "SELECT v,a.id,a.name,d.level,a.type,[JAN],[FEB],[MAR],[APR],[MAY],[JUN],[JUL],[AUG],[SEP],[OCT],[NOV],[DEC] "+
+                      "FROM LevelCalculater AS d "+
+                      "JOIN input_table_accounts AS a ON d.id = a.id "+
+                      "LEFT JOIN #temp2 ON #temp2.id = d.id "+
+                      "ORDER BY v";
                       
             new mssql.Request()
+                .input('plan_id',mssql.BigInt,plan_id)
                 .query(sql,function(err,r)
                 {            
+                    console.log(err)
                     callback( {"body":r.recordset, "header":Object.keys(r.recordset[0]) })
                 })          
                 
@@ -822,7 +862,37 @@ exports.get = function(config,callback)
         }
 
 
-
+        db.update_new_plan = function(plan_id,d,callback)
+        {
+            var l = []
+            for(k in d)
+            { 
+                var value = d[k]
+                var id = k.split(';')[0]
+                var month = k.split(';')[1]
+                l.push( {"id":id,"month":month,"value":value} )                                   
+            }
+            async.each(
+                l,
+                function(v,c)
+                {
+                    var sql = "INSERT INTO input_table_input ([value], [month], [_accounts_id], [_plan_id]) VALUES (@value,@month,@id,@plan_id);"
+                    new mssql.Request()
+                        .input('plan_id',mssql.BigInt,plan_id)
+                        .input('id',mssql.BigInt,v.id)
+                        .input('month',mssql.VarChar(3),v.month)
+                        .input('value',mssql.Decimal(18,4),v.value)
+                        .query(sql,function(err,r)
+                        {      
+                            c();
+                        })                    
+                },
+                function()
+                {
+                    callback()
+                }
+            )    
+        }
 
         
         db.get_division_group_plan_for_user = function(user_id,callback)
@@ -838,8 +908,8 @@ exports.get = function(config,callback)
 
                       "SET @PivotTableSQL = N' "+
                       "SELECT * FROM (SELECT gp.name AS gp_name, div.name AS d_id, CONCAT(it.[id],''|'',it.[status]) AS f FROM input_table_group_plans AS gp "+
-                      "LEFT JOIN input_table AS it ON it.group_plan_id=gp.ID "+
-                      "JOIN input_table_division AS div ON div.id = it.division_id "+
+                      "LEFT JOIN input_table AS it ON it._group_plan_id=gp.ID "+
+                      "LEFT JOIN input_table_division AS div ON div.id = it._division_id "+
                       ") AS r "+
                       "PIVOT (   max([f]) for [d_id] IN ( "+
                       "' + @PivotColumnHeaders + '"+

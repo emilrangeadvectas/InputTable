@@ -1,32 +1,109 @@
 html
     head
         link(rel="stylesheet",type="text/css",href="/style2.css")
-    table
-        tr
-            td
-        each val in data
-            if val['level']==2
+        
+    form(method='POST', action='/test7/'+plan_id)    
+        table
+            tr
+                td
+            each val in data
             
-                tr
-                    th(coslpan="8" class="space")            
-                tr
-                    td(colspan="2", class="void")
-                    th(colspan="6", class="header")=val['name']
-            else if val['level'] == 4
-                tr
-                    td(colspan="2", class="void")
-                    td(colspan="3" class="edge")=val['name']
-                    td
-                        input
-                    td
-                        input
-                    td
-                        input
-            else                    
-                tr(class="top")
-                    th(colspan="5")=val['name']
-                    th JAN
-                    th FEB
-                    th MAR
+                if val['type']==1
+                    if val['level']==4
+                        tr(class="sum")
+                            td(colspan="2" class="void")
+                            th(colspan="3")=val['name']
+                            td=val['JAN']
+                            td=val['FEB']
+                            td=val['MAR']
+                            td=val['APR']
+                            td=val['MAY']
+                            td=val['JUN']
+                            td=val['JUL']
+                            td=val['AUG']
+                            td=val['SEP']
+                            td=val['OCT']
+                            td=val['NOV']
+                            td=val['DEC']
+
+                    if val['level']==2
+                        tr
+                            th(coslpan="8" class="space")            
+                        tr(class="sum top",)
+                            th(colspan="5")=val['name']
+                            td=val['JAN']
+                            td=val['FEB']
+                            td=val['MAR']
+                            td=val['APR']
+                            td=val['MAY']
+                            td=val['JUN']
+                            td=val['JUL']
+                            td=val['AUG']
+                            td=val['SEP']
+                            td=val['OCT']
+                            td=val['NOV']
+                            td=val['DEC']
+                else
+                    if val['level']==2
                     
-    </tr>
+                        tr
+                            th(coslpan="8" class="space")            
+                        tr
+                            td(colspan="2", class="void")
+                            th(colspan="15", class="header")=val['name']
+                    else if val['level'] == 4
+                        tr
+                            td(colspan="2", class="void")
+                            td(colspan="3" class="edge")=val['name']
+                            td
+                                input(value=val['JAN'], type='hidden', name='_'+val['id']+';JAN')
+                                input(value=val['JAN'], type='text', name=val['id']+';JAN')
+                            td
+                                input(value=val['FEB'], type='hidden', name='_'+val['id']+';FEB')
+                                input(value=val['FEB'], type='text', name=val['id']+';FEB')
+                            td
+                                input(value=val['MAR'], type='hidden', name='_'+val['id']+';MAR')
+                                input(value=val['MAR'], type='text', name=val['id']+';MAR')
+                            td
+                                input(value=val['APR'], type='hidden', name='_'+val['id']+';APR')
+                                input(value=val['APR'], type='text', name=val['id']+';APR')
+                            td
+                                input(value=val['MAY'], type='hidden', name='_'+val['id']+';MAY')
+                                input(value=val['MAY'], type='text', name=val['id']+';MAY')
+                            td
+                                input(value=val['JUN'], type='hidden', name='_'+val['id']+';JUN')
+                                input(value=val['JUN'], type='text', name=val['id']+';JUN')
+                            td
+                                input(value=val['JUL'], type='hidden', name='_'+val['id']+';JUL')
+                                input(value=val['JUL'], type='text', name=val['id']+';JUL')
+                            td
+                                input(value=val['AUG'], type='hidden', name='_'+val['id']+';AUG')
+                                input(value=val['AUG'], type='text', name=val['id']+';AUG')
+                            td
+                                input(value=val['SEP'], type='hidden', name='_'+val['id']+';SEP')
+                                input(value=val['SEP'], type='text', name=val['id']+';SEP')
+                            td
+                                input(value=val['OCT'], type='hidden', name='_'+val['id']+';OCT')
+                                input(value=val['OCT'], type='text', name=val['id']+';OCT')
+                            td
+                                input(value=val['NOV'], type='hidden', name='_'+val['id']+';NOV')
+                                input(value=val['NOV'], type='text', name=val['id']+';NOV')
+                            td
+                                input(value=val['DEC'], type='hidden', name='_'+val['id']+';DEC')
+                                input(value=val['DEC'], type='text', name=val['id']+';DEC')
+                    else                    
+                        tr(class="top")
+                            th(colspan="5")=val['name']
+                            th JAN
+                            th FEB
+                            th MAR
+                            th APR
+                            th MAY
+                            th JUN
+                            th JUL
+                            th AUG
+                            th SEP
+                            th OCT
+                            th NOV
+                            th DEC
+        input(type='submit')
