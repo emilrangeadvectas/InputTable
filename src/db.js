@@ -427,15 +427,18 @@ exports.get = function(config,callback)
               })            
         }
         
-        db.set_plan_state = function(state,user,group_plan_id,callback)
+        db.set_plan_state = function(state,plan_id,callback)
         {
-            var sql = "UPDATE input_table SET status = @state WHERE [user] LIKE @user AND group_plan_id = @group_plan_id";
+            console.log(plan_id)
+            var sql = "UPDATE input_table SET status = @state WHERE id = @plan_id";
             new mssql.Request()
               .input('state',mssql.BigInt,state)
-              .input('user',mssql.VarChar(255),user)
-              .input('group_plan_id',mssql.BigInt,group_plan_id)
+              .input('plan_id',mssql.BigInt,plan_id)
               .query(sql,function(err,r)
               {
+                  console.log("---------------")
+                  console.log(err)
+                  console.log(r)
                   callback();              
               })
         }
@@ -786,14 +789,15 @@ exports.get = function(config,callback)
                       "FROM LevelCalculater AS d "+
                       "JOIN input_table_accounts AS a ON d.id = a.id "+
                       "LEFT JOIN #temp2 ON #temp2.id = d.id "+
-                      "ORDER BY v";
+                      "ORDER BY v; "+
                       
+                      "SELECT it.status, itgp.name AS group_plan_name, itd.name AS division_name FROM input_table AS it JOIN input_table_group_plans AS itgp ON itgp.ID = it._group_plan_id JOIN input_table_division AS itd ON itd.id = it._division_id WHERE it.id = @plan_id";
+                                            
             new mssql.Request()
                 .input('plan_id',mssql.BigInt,plan_id)
                 .query(sql,function(err,r)
                 {            
-                    console.log(err)
-                    callback( {"body":r.recordset, "header":Object.keys(r.recordset[0]) })
+                    callback( {"body":r.recordset, "header":Object.keys(r.recordset[0]),"status":r.recordsets[1][0]['status'],"group_plan_name":r.recordsets[1][0]['group_plan_name'],"division_name":r.recordsets[1][0]['division_name'] })
                 })          
                 
                 

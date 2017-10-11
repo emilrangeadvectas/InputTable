@@ -137,17 +137,17 @@ require('./src/db.js').get(config, function(db)
 
   app.post('/lock_plan', function(req, res)
   {
-      db.set_plan_state("1",req.cookies['login_name'],req.body["group_plan_id"],function()
+      db.set_plan_state("1",req.body["plan_id"],function()
       {
-        res.redirect("/plans/"+req.body["group_plan_id"])  
+        res.redirect("/plans/"+req.body["plan_id"])  
       })
   })
 
   app.post('/unlock_plan', function(req, res)
   {
-      db.set_plan_state("0",req.cookies['login_name'],req.body["group_plan_id"],function()
+      db.set_plan_state("0",req.body["plan_id"],function()
       {
-        res.redirect("/plans/"+req.body["group_plan_id"])  
+        res.redirect("/plans/"+req.body["plan_id"])  
       })
   })
   
@@ -345,18 +345,32 @@ require('./src/db.js').get(config, function(db)
         }).then(function(du)
         {
             body = t.recordset
-            body = body.map(function(x)
+            if(body.length===0)
             {
-                for(k in x)
+                t = {"header":[],"body":[]}
+                
+            }
+            else
+            {
+                body = body.map(function(x)
                 {
-                    if(k=='group_plan'){}
-                    else
-                        x[k] = x[k] === null ? 'not created' : x[k]===0 ? 'open' : '?'
-                }
-                return x
-            })
-            t = {"header":Object.keys(t.recordset[0]),"body":body}
+                    for(k in x)
+                    {
+                        if(k=='group_plan'){}
+                        else
+                            x[k] = x[k] === null ? 'not created' : x[k]===0 ? 'open' : 'locked/ready'
+                    }
+                    return x
+                })
+                
+                t = {"header":Object.keys(t.recordset[0]),"body":body}
+            }
             resp.render('admin',{division_user:du, user_group_plan:t,header:{title:"Admin","user":req.cookies['login_name']}});        
+        })
+        .catch(function()
+        {
+            resp.status(500)
+            resp.end()
         })
 		/*
         db.valid_admin(function(valid_admin)
@@ -406,14 +420,13 @@ require('./src/db.js').get(config, function(db)
                         {
                             var d = x[f].split("|")
                             if(d[0]=='x')
-                                x[f] = {"type":"exists","id":d[1],"status":"open"}
+                                x[f] = {"type":"exists","id":d[1],"status": d[2]==0 ? 'open' : 'locked/ready' }
                             else
                                 x[f] = {"type":"create","group_plan_id":d[1],"division_id":d[2]}
                         }
                     }
                     return x
                 })
-                console.log(d.body)
                 
                 res.render('plans', { plans:d,"header":{"title":"Plans","user":req.cookies['login_name'],"is_admin":is_admin,"hide_plan_view_link":true,}})                
 			})
@@ -436,7 +449,7 @@ require('./src/db.js').get(config, function(db)
     {
         db.get_new_plan(req.params.plan_id,function(x)
         {
-            res.render('new_plan',{data:x.body,plan_id:req.params.plan_id});                              
+            res.render('new_plan',{data:x.body,plan_id:req.params.plan_id, "header":{"title":"Plan: "+x.group_plan_name+", "+x.division_name,"plan_id":req.params.plan_id,"is_locked":x.status===1}   });                              
         })
     })
 
