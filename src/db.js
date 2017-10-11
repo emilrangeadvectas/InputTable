@@ -11,6 +11,19 @@ var editable = 'editable'
 /*
 TODO: lägg in den här query så att vi plockar den senaste (notera att vi kör insert istället för update i fortsättningen)
 ;
+
+
+
+SELECT ita.name,it.value,_plan_id,it_._group_plan_id,it_._division_id,itgp.name, itd.name,[month] FROM
+(
+	SELECT MAX(id) AS id FROM input_table_input GROUP BY _plan_id, _accounts_id, [month]
+
+) AS it_max_id
+JOIN input_table_input AS it ON it.id = it_max_id.id
+JOIN input_table_accounts AS ita ON ita.id = it._accounts_id
+JOIN input_table AS it_ ON it_.id = it._plan_id
+JOIN input_table_group_plans AS itgp ON itgp.ID = it_._group_plan_id
+JOIN input_table_division AS itd ON itd.id = it_._division_id
 */
 
 // escape värden i query. (iaf dom som är input relaterade)
@@ -763,6 +776,7 @@ exports.get = function(config,callback)
                       "SELECT [id] as root_id, [id],[type],a.type AS [root_type],[parent_id] "+
                       "FROM input_table_accounts AS a "+
                       "WHERE a.type = 1 OR a.type = 2 "+
+
                       "UNION ALL "+
                       "SELECT [root_id],a.[id],a.[type],[root_type],a.[parent_id] "+
                       "FROM input_table_accounts AS a "+

@@ -185,15 +185,7 @@ require('./src/db.js').get(config, function(db)
   
   app.get('/rest5', function(req, res)
   {
-    db.get_raw_newest_data3(function(d)
-    {
-        csv ="user;group_plan;key;field;value";
-        d.forEach(function(x)
-        {
-            csv += "\n"+(x.join(";"))  
-        })
-        res.end(csv) 
-    });
+    db.get_new_plan();
   })
 
   app.get('/rest', function(req, res)
