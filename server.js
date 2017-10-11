@@ -10,6 +10,7 @@ var config = JSON.parse(fs.readFileSync('config/config.json', 'utf8'));
 
 main_password = "jkl"
 
+
 function status_code_to_text(x)
 {
     if( x==1 ) return "locked/ready";
@@ -24,13 +25,14 @@ require('./src/db.js').get(config, function(db)
   app.set('views', __dirname);
   app.set('view engine', 'pug');
 
-  app.use(session({ secret: 'fhjketipq3', cookie: { maxAge: 600000 }}))
+  app.use(session({ secret: 'fhjketipq3', cookie: {  }}))
   
 
   
   app.use(bodyParser.urlencoded());
   app.use(bodyParser.json());
   app.use(cookieParser());
+  app.use(require('express-method-override')('_method'));
 
   app.use(function(req,res,next)
   {
@@ -107,37 +109,9 @@ require('./src/db.js').get(config, function(db)
     }
   })
 
-    app.post('/create_plan_',function(req,res)
-    {
+    // ---
 
-    })
-    
-    app.get('/test7/:plan_id',function(req,res)
-    {
-        db.get_new_plan(req.params.plan_id,function(x)
-        {
-            res.render('new_plan',{data:x.body,plan_id:req.params.plan_id});                              
-        })
-    })
-
-    app.post('/test7/:plan_id',function(req,res)
-    {
-        var update_data = {}
-        for(key in req.body)
-        {
-          if(key[0]!="_")
-          {
-            if(req.body[key]!=req.body["_"+key])
-            {
-              update_data[key] = req.body[key]
-            }
-          }
-        }        
-        db.update_new_plan(req.params.plan_id,update_data,function()
-        {
-            res.redirect('/test7/'+req.params.plan_id)             
-        })
-    })
+    // ---
     
   app.get('/iframe',function(req, res)
   {
@@ -296,7 +270,7 @@ require('./src/db.js').get(config, function(db)
     })
   })
 
-
+/*
   app.get('/plans/:plan_id', function(req, res)
   {
     db.get_matrix(function(matrix)
@@ -330,7 +304,7 @@ require('./src/db.js').get(config, function(db)
       })
     },update_data,req.cookies['login_name'],req.params.plan_id )
   })
-  
+  */
   app.get('/', function(req, res)
   {
           
@@ -346,8 +320,45 @@ require('./src/db.js').get(config, function(db)
   });
 
     // ---
-    app.get('/admin',function(req, res)
+    app.get('/admin',function(req, resp)
     {
+        /*
+		Promise.all([db.get_pivot_user_group_plan(1),db.get_division_user_state()]).then(function(l)
+		{
+            console.log("!!!!1")
+			console.log(l)
+            res.render('admin',{division_user:l[1],group_plans:[],theaders:h,header:{title:"Admin","user":req.cookies['login_name']}});        
+		})
+		.catch(function()
+		{
+            console.log("!!!!2")
+			res.status(500)
+			res.end()
+		})
+        */
+        var t = undefined
+        db.get_pivot_user_group_plan().then(function(o)
+        {
+            t = o
+            return db.get_division_user_state();
+            
+        }).then(function(du)
+        {
+            body = t.recordset
+            body = body.map(function(x)
+            {
+                for(k in x)
+                {
+                    if(k=='group_plan'){}
+                    else
+                        x[k] = x[k] === null ? 'not created' : x[k]===0 ? 'open' : '?'
+                }
+                return x
+            })
+            t = {"header":Object.keys(t.recordset[0]),"body":body}
+            resp.render('admin',{division_user:du, user_group_plan:t,header:{title:"Admin","user":req.cookies['login_name']}});        
+        })
+		/*
         db.valid_admin(function(valid_admin)
         {
             if(valid_admin)
@@ -376,43 +387,79 @@ require('./src/db.js').get(config, function(db)
             {
                 res.render('admin',{group_plans:[],theaders:[],header:{title:"Admin","user":req.cookies['login_name']}});        
             }
-        })
+        })*/
     })
 
-
+    // ---- PLAN:
     app.get('/plans', function(req, res)
     {
         db.is_admin(req.cookies['login_name'],function(is_admin)
         {
-            db.get_division_group_plan_for_user(req.cookies['login_user_id'],function(d)
-            {
-
-                /*
+			db.get_division_group_plan_for_user(req.cookies['login_user_id']).then(function(d)
+			{
+                console.log(d.body)
                 d.body = d.body.map(function(x)
                 {
                     for(var f in x)
                     {
-                        console.log(f)
                         if(f!="gp_name")
                         {
-                            if(x[f]!==null)
-                            {
-                                x[f] = x[f].split("|")
-                                x[f][1] = status_code_to_text(x[f][1])
-                            }
+                            var d = x[f].split("|")
+                            if(d[0]=='x')
+                                x[f] = {"type":"exists","id":d[1],"status":"open"}
                             else
-                                x[f] = status_code_to_text(null)
+                                x[f] = {"type":"create","group_plan_id":d[1],"division_id":d[2]}
                         }
                     }
-                    return x;
-                })*/
-                
-                //convert x|1(id)|1(status) to link to plan, c|1|1 to (group)(div) craete plan
+                    return x
+                })
+                console.log(d.body)
                 
                 res.render('plans', { plans:d,"header":{"title":"Plans","user":req.cookies['login_name'],"is_admin":is_admin,"hide_plan_view_link":true,}})                
-            })
+			})
+			.catch(function()
+			{
+                res.render('plans', { plans:{header:[],body:[]},"header":{"title":"Plans","user":req.cookies['login_name'],"is_admin":is_admin,"hide_plan_view_link":true,}})                
+			})
         })
     })
+
+    app.post('/plans',function(req,res)
+    {
+        db.create_plan(req.body['division_id'],req.body['group_plan_id'],function()
+        {
+            res.redirect('/plans')                         
+        })
+    })
+    
+    app.get('/plans/:plan_id',function(req,res)
+    {
+        db.get_new_plan(req.params.plan_id,function(x)
+        {
+            res.render('new_plan',{data:x.body,plan_id:req.params.plan_id});                              
+        })
+    })
+
+    app.put('/plans/:plan_id',function(req,res)
+    {
+        var update_data = {}
+        for(key in req.body)
+        {
+          if(key[0]!="_")
+          {
+            if(req.body[key]!=req.body["_"+key])
+            {
+              update_data[key] = req.body[key]
+            }
+          }
+        }        
+        db.update_new_plan(req.params.plan_id,update_data,function()
+        {
+            res.redirect('/plans/'+req.params.plan_id)             
+        })
+    })
+    // ----
+    
     // ---
     
     http_server = http.createServer(app);

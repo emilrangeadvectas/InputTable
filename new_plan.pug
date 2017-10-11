@@ -2,7 +2,8 @@ html
     head
         link(rel="stylesheet",type="text/css",href="/style2.css")
         
-    form(method='POST', action='/test7/'+plan_id)    
+    form(method='POST', action='/plans/'+plan_id)    
+        input(type='hidden', value='PUT', name='_method')
         table
             tr
                 td

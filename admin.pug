@@ -10,21 +10,19 @@ html
       input(type='text',name='name')
       input(type='submit',value='create')
     h3 User group plan status/handler
+
     table(class="standard")
         tr
-            each val in theaders
+            each val in user_group_plan.header
                 if val == "name"
                     th Group plan
                 else
                     th=val
-        each val in group_plans
+        each val in user_group_plan.body
             tr
-                each h in theaders
+                each h in user_group_plan.header
                     td
-                        if h=="export"
-                            input(type='button', disabled='', value='export')
-                        else
-                            =val[h]
+                        =val[h]
 
     table(class="standard")
         tr

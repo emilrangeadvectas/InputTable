@@ -584,62 +584,17 @@ exports.get = function(config,callback)
             })
         }
         
-        db.create_plan = function(user,group_plan_id,d)
+        db.create_plan = function(division_id,group_plan_id,callback)
         {
-            if(!user)
-            {
-                d(false,"User is 'false'");
-                return;
-            }
-                
-            var table_name = get_next_table_name()
-            var sql = "CREATE TABLE ["+table_name[0]+"]("+
-                "[_key] [nvarchar](32) NULL,"+
-                "[field] [nvarchar](32) NULL,"+
-                "[value] [int] NULL,"+
-                "[editable] [tinyint] NULL,"+
-                "[created] [datetime] NULL"+
-            ") ON [PRIMARY]";
-            
-            
+            var sql = "INSERT INTO input_table ([_division_id],[_group_plan_id],[status]) VALUES (@division_id,@group_plan_id,0)";
             new mssql.Request()
-            .query(sql,function(err)
-            {
-
-
-                var insert = function(i,done)
+                .input('division_id',mssql.BigInt,division_id)
+                .input('group_plan_id',mssql.BigInt,group_plan_id)
+                .query(sql,function(err,recordsets)
                 {
-                    var sql3 = "INSERT INTO "+table_name[0]+"([_key],[field],[value],[editable]) VALUES (@key,@field,@value,@editable)"
-                    new mssql.Request()
-                      .input('key',mssql.VarChar(255),i.key)
-                      .input('field',mssql.VarChar(255),i.field)
-                      .input('value',mssql.VarChar(255),i.value)
-                      .input('editable',mssql.TinyInt,i.editable===false ? 0 : 1)
-                      .query(sql3,function(err)
-                      {
-                          done();
-                      })
-                }
-                
-                async.each(aggregator.get(user),insert,function()
-                {
-                    var sql2 = "INSERT INTO input_table VALUES(@user,@table_sufix,@group_plan_id,0)"
-
-                    new mssql.Request()
-                      .input('user',mssql.VarChar(255),user)
-                      .input('table_sufix',mssql.VarChar(255),table_name[1])
-                      .input('group_plan_id',mssql.BigInt,group_plan_id)
-                      .query(sql2,function(err)
-                      {
-                          d(true);
-                      })
-                  
-                });
-
-
-
-
-            })
+                    console.log(err)
+                    callback();
+                })            
         };
 
         db.valid_admin = function(callback)
@@ -652,56 +607,36 @@ exports.get = function(config,callback)
                 });
         }
         
-        db.get_pivot_user_group_plan = function(callback)
+        db.get_pivot_user_group_plan = function()
         {
+			return new Promise(function(res,rej)
+			{
+                var sql = "DECLARE @PivotColumnHeaders VARCHAR(MAX) "+
+                          "SELECT @PivotColumnHeaders = "+
+                          "COALESCE( "+
+                          "@PivotColumnHeaders + ',[' + [name] + ']', "+
+                          "'[' + [name] + ']' "+
+                          ") "+
+                          "FROM ( SELECT * FROM input_table_division) as d; "+
 
-            
-        
-            var sql = "DECLARE @PivotColumnHeaders VARCHAR(MAX)"+
-                      "SELECT @PivotColumnHeaders = "+
-                      "COALESCE("+
-                      "    @PivotColumnHeaders + ',[' + [name] + ']',"+
-                      "    '[' + [name] + ']'"+
-                      "   )"+
-                      "  FROM input_table_group_plans;"+
-
-                       " DECLARE @PivotTableSQL NVARCHAR(MAX)"+
-                       " SET @PivotTableSQL = N'"+
-                       "   SELECT * FROM  (SELECT [user], [status],[name] FROM input_table JOIN input_table_group_plans ON input_table_group_plans.ID = input_table.group_plan_id) AS r"+
-                       "   PIVOT (   max([status]) for [name] IN ("+
-                       "    ' + @PivotColumnHeaders + '"+
-                       "   ) ) as t;"+
-                       " '"+
-                       " EXECUTE(@PivotTableSQL)"
-                       
-                sql = "DECLARE @PivotColumnHeaders VARCHAR(MAX)"+
-                      "SELECT @PivotColumnHeaders = "+
-                      "COALESCE("+
-                      "    @PivotColumnHeaders + ',[' + [user] + ']',"+
-                      "    '[' + [user] + ']'"+
-                      "   )"+
-                      "  FROM ( SELECT [user],SUM([status]) as d FROM input_table GROUP BY [user]) as d;"+
-
-					  "DECLARE @PivotTableSQL NVARCHAR(MAX)"+
-                      "  SET @PivotTableSQL = N'"+
-                      "    SELECT * FROM  (SELECT [user], [status],[name] FROM input_table RIGHT JOIN input_table_group_plans ON input_table_group_plans.ID = input_table.group_plan_id) AS r"+
-                      "    PIVOT (   max([status]) for [user] IN ("+
-                      "     ' + @PivotColumnHeaders + '"+
-                      "    ) ) as t;"+
-                      "  '"+
-                      "  EXECUTE(@PivotTableSQL)";
-                        
+                          "DECLARE @PivotTableSQL NVARCHAR(MAX) "+
+                          "SET @PivotTableSQL = N' "+
+                          "SELECT * FROM  (SELECT itd.name AS d ,status, itgp.name AS group_plan FROM input_table_group_plans AS itgp "+
+                          "JOIN input_table_division AS itd ON 1=1 "+
+                          "LEFT JOIN input_table AS it ON it._division_id = itd.id AND it._group_plan_id = itgp.ID) AS r "+
+                          "PIVOT (   max([status]) for [d] IN ( "+
+                          "' + @PivotColumnHeaders + ' "+
+                          ") ) as t; "+
+                          "'; "+
+                          "EXECUTE(@PivotTableSQL); ";
 
             new mssql.Request()
                 .query(sql,function(err,recordsets)
                 {
-                    new mssql.Request()
-                        .query("SELECT [user],2 as sort_column FROM (SELECT [user],SUM([status]) as d FROM input_table GROUP BY [user]) as y UNION SELECT 'name', 1 as sort_column ORDER BY sort_column;",function(err,recordsets2)
-                        {
-                            console.log(recordsets2.recordset)
-                            callback(recordsets.recordset,recordsets2.recordset.map( function(x){ return x.user } ))                            
-                        })
+                    if(err) rej();
+                    else res(recordsets);
                 })
+			})                       
         }
         
         db.add_field = function(f,done)
@@ -752,28 +687,32 @@ exports.get = function(config,callback)
         // -----
         db.get_division_user_state = function(callback)
         {
-            var sql = "DECLARE @PivotColumnHeaders VARCHAR(MAX) "+
-                      "SELECT @PivotColumnHeaders = "+
-                      "COALESCE( "+
-                      "    @PivotColumnHeaders + ',[' + [name] + ']', "+
-                      "    '[' + [name] + ']' "+
-                      "   ) "+
-                      " FROM input_table_division; "+
-                      " DECLARE @PivotTableSQL NVARCHAR(MAX) "+
+            return new Promise(function(res,rej)
+            {
+                var sql = "DECLARE @PivotColumnHeaders VARCHAR(MAX) "+
+                          "SELECT @PivotColumnHeaders = "+
+                          "COALESCE( "+
+                          "    @PivotColumnHeaders + ',[' + [name] + ']', "+
+                          "    '[' + [name] + ']' "+
+                          "   ) "+
+                          " FROM input_table_division; "+
+                          " DECLARE @PivotTableSQL NVARCHAR(MAX) "+
 
-                      "SET @PivotTableSQL = N' "+
-                      "SELECT * FROM  (  SELECT [username], [rights],[name] FROM input_table_divsion_user JOIN input_table_users ON input_table_divsion_user.user_id = input_table_users.id JOIN input_table_division ON input_table_divsion_user.divions_id = input_table_division.id) AS r "+
-                      "PIVOT (   max([rights]) for [name] IN ("+
-                      "' + @PivotColumnHeaders + '"+
-                      "   ) ) as t; "+
-                      "  '"+
-                      "  EXECUTE(@PivotTableSQL) ";
+                          "SET @PivotTableSQL = N' "+
+                          "SELECT * FROM  (  SELECT [username], [rights],[name] FROM input_table_divsion_user JOIN input_table_users ON input_table_divsion_user.user_id = input_table_users.id JOIN input_table_division ON input_table_divsion_user.divions_id = input_table_division.id) AS r "+
+                          "PIVOT (   max([rights]) for [name] IN ("+
+                          "' + @PivotColumnHeaders + '"+
+                          "   ) ) as t; "+
+                          "  '"+
+                          "  EXECUTE(@PivotTableSQL) ";
 
-            new mssql.Request()
-                .query(sql,function(err,r)
-                {                    
-                    callback( {"body":r.recordset, "header":Object.keys(r.recordset[0]) })
-                })      
+                new mssql.Request()
+                    .query(sql,function(err,r)
+                    {                    
+                        res( {"body":r.recordset, "header":Object.keys(r.recordset[0]) })
+                    })      
+                
+            });
         }
         // -----
 
@@ -895,47 +834,48 @@ exports.get = function(config,callback)
         }
 
         
-        db.get_division_group_plan_for_user = function(user_id,callback)
+        db.get_division_group_plan_for_user = function(user_id)
         {
-            var sql = "DECLARE @PivotColumnHeaders VARCHAR(MAX) "+
-                      "SELECT @PivotColumnHeaders = "+
-                      "COALESCE( "+
-                      "    @PivotColumnHeaders + ',[' + [name] + ']', "+
-                      "    '[' + [name] + ']' "+
-                      "   ) "+
-                      " FROM ( SELECT MAX([name]) AS [name] FROM input_table_division JOIN input_table_divsion_user ON input_table_divsion_user.divions_id = input_table_division.id WHERE input_table_divsion_user.[user_id] = @user_id GROUP BY [name]  ) AS d"+
-                      " DECLARE @PivotTableSQL NVARCHAR(MAX) "+
+			return new Promise( function(res,rej)
+			{
+				var sql = "DECLARE @PivotColumnHeaders VARCHAR(MAX) "+
+						  "SELECT @PivotColumnHeaders = "+
+						  "COALESCE( "+
+						  "    @PivotColumnHeaders + ',[' + [name] + ']', "+
+						  "    '[' + [name] + ']' "+
+						  "   ) "+
+						  " FROM ( SELECT MAX([name]) AS [name] FROM input_table_division JOIN input_table_divsion_user ON input_table_divsion_user.divions_id = input_table_division.id WHERE input_table_divsion_user.[user_id] = @user_id GROUP BY [name]  ) AS d"+
+						  " DECLARE @PivotTableSQL NVARCHAR(MAX) "+
 
-                      " DECLARE @user BIGINT; "+
-                      " SET @user_id = @user_id; "+
-                      
-                      "SET @PivotTableSQL = N' "+
-                      "SELECT * FROM "+
-                      "( "+
-                      "SELECT itg.name AS gp_name, itd.name AS d_id, CASE WHEN status IS NULL THEN CONCAT(''c|'',itg.ID,''|'',itd.id) ELSE CONCAT(''x|'',it.id,''|'',it.status) END as f "+
-                      "FROM input_table_group_plans AS itg "+
-                      "JOIN input_table_divsion_user AS itdu ON [user_id]=' + @user_id + '  "+
-                      "JOIN input_table_division AS itd ON itdu.divions_id = itd.id "+
-                      "LEFT JOIN input_table AS it ON it._division_id = itd.id AND it._group_plan_id = itg.ID "+
-                      ") AS r "+
-                      "PIVOT (   max([f]) for [d_id] IN ( "+
-                      "' + @PivotColumnHeaders + ' "+
-                      ") ) as t; "+
-                      "' "+
-                      
-                      "EXECUTE(@PivotTableSQL) ";
+						  " DECLARE @user BIGINT; "+
+						  " SET @user_id = @user_id; "+
+						  
+						  "SET @PivotTableSQL = N' "+
+						  "SELECT * FROM "+
+						  "( "+
+						  "SELECT itg.name AS gp_name, itd.name AS d_id, CASE WHEN status IS NULL THEN CONCAT(''c|'',itg.ID,''|'',itd.id) ELSE CONCAT(''x|'',it.id,''|'',it.status) END as f "+
+						  "FROM input_table_group_plans AS itg "+
+						  "JOIN input_table_divsion_user AS itdu ON [user_id]=' + @user_id + '  "+
+						  "JOIN input_table_division AS itd ON itdu.divions_id = itd.id "+
+						  "LEFT JOIN input_table AS it ON it._division_id = itd.id AND it._group_plan_id = itg.ID "+
+						  ") AS r "+
+						  "PIVOT (   max([f]) for [d_id] IN ( "+
+						  "' + @PivotColumnHeaders + ' "+
+						  ") ) as t; "+
+						  "' "+
+						  
+						  "EXECUTE(@PivotTableSQL) ";
 
-                      
-            new mssql.Request()
-                .input('user_id',mssql.VarChar(255),user_id) //can we have this as a bigint some how. SET @user_id = @user_id do not seem to allow it (maybe we can cast it)
-                .query(sql,function(err,r)
-                {            
-                    callback( {"body":r.recordset, "header":Object.keys(r.recordset[0]) })
-                })          
-
+						  
+				new mssql.Request()
+					.input('user_id',mssql.VarChar(255),user_id) //can we have this as a bigint some how. SET @user_id = @user_id do not seem to allow it (maybe we can cast it)
+					.query(sql,function(err,r)
+					{
+						if(err || r.recordset.length==0) rej();
+						else res( {"body":r.recordset, "header":Object.keys(r.recordset[0]) })
+					})          
+			});
         }
-
-        
         callback(db)
-  })
+	})
 }

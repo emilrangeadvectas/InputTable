@@ -13,28 +13,13 @@ html
         each val in plans.body
             tr
                 each val2 in val
-                    td=val2
-    table(class="standard")
-      tr
-        th name    
-        th status
-        th
-      each val, index in plans
-        tr
-          td
-            if val['status']!=-1
-              a(href='/plans/'+val['group_plan_id'])=val['name']
-            else
-              =val['name']
-          if val['status']==0
-            td open
-          if val['status']==1
-            td locked/ready
-          if val['status']==-1
-            td not created
-          td
-            if val['status']==-1
-              form(method='POST', action='create_plan')
-                input(type='hidden', name='id', value=val['group_plan_id'])
-                input(type='submit', value='create')
-          
+                    td
+                        if val2['type']=='create'
+                            form(method='POST', action='/plans')
+                                input(type='hidden', name='group_plan_id', value=val2['group_plan_id'])
+                                input(type='hidden', name='division_id', value=val2['division_id'])
+                                input(type='submit', value='create')
+                        else if val2['type']=='exists'
+                            a(href='/plans/'+val2['id'])=val2['status']
+                        else
+                            =val2
