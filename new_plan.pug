@@ -7,7 +7,7 @@ html
 
         form(method='POST', action='/plans/'+plan_id)    
             input(type='hidden', value='PUT', name='_method')
-            table
+            table(class="plan")
                 tr
                     td
                 each val in data
@@ -61,40 +61,40 @@ html
                                 td(colspan="3" class="edge")=val['name']
                                 td
                                     input(value=val['JAN'], type='hidden', name='_'+val['id']+';JAN')
-                                    input(value=val['JAN'], type='text', name=val['id']+';JAN')
+                                    input(value=val['JAN'], type='text', name=val['id']+';JAN',disabled=disable_form)
                                 td
                                     input(value=val['FEB'], type='hidden', name='_'+val['id']+';FEB')
-                                    input(value=val['FEB'], type='text', name=val['id']+';FEB')
+                                    input(value=val['FEB'], type='text', name=val['id']+';FEB',disabled=disable_form)
                                 td
                                     input(value=val['MAR'], type='hidden', name='_'+val['id']+';MAR')
-                                    input(value=val['MAR'], type='text', name=val['id']+';MAR')
+                                    input(value=val['MAR'], type='text', name=val['id']+';MAR',disabled=disable_form)
                                 td
                                     input(value=val['APR'], type='hidden', name='_'+val['id']+';APR')
-                                    input(value=val['APR'], type='text', name=val['id']+';APR')
+                                    input(value=val['APR'], type='text', name=val['id']+';APR',disabled=disable_form)
                                 td
                                     input(value=val['MAY'], type='hidden', name='_'+val['id']+';MAY')
-                                    input(value=val['MAY'], type='text', name=val['id']+';MAY')
+                                    input(value=val['MAY'], type='text', name=val['id']+';MAY',disabled=disable_form)
                                 td
                                     input(value=val['JUN'], type='hidden', name='_'+val['id']+';JUN')
-                                    input(value=val['JUN'], type='text', name=val['id']+';JUN')
+                                    input(value=val['JUN'], type='text', name=val['id']+';JUN',disabled=disable_form)
                                 td
                                     input(value=val['JUL'], type='hidden', name='_'+val['id']+';JUL')
-                                    input(value=val['JUL'], type='text', name=val['id']+';JUL')
+                                    input(value=val['JUL'], type='text', name=val['id']+';JUL',disabled=disable_form)
                                 td
                                     input(value=val['AUG'], type='hidden', name='_'+val['id']+';AUG')
-                                    input(value=val['AUG'], type='text', name=val['id']+';AUG')
+                                    input(value=val['AUG'], type='text', name=val['id']+';AUG',disabled=disable_form)
                                 td
                                     input(value=val['SEP'], type='hidden', name='_'+val['id']+';SEP')
-                                    input(value=val['SEP'], type='text', name=val['id']+';SEP')
+                                    input(value=val['SEP'], type='text', name=val['id']+';SEP',disabled=disable_form)
                                 td
                                     input(value=val['OCT'], type='hidden', name='_'+val['id']+';OCT')
-                                    input(value=val['OCT'], type='text', name=val['id']+';OCT')
+                                    input(value=val['OCT'], type='text', name=val['id']+';OCT',disabled=disable_form)
                                 td
                                     input(value=val['NOV'], type='hidden', name='_'+val['id']+';NOV')
-                                    input(value=val['NOV'], type='text', name=val['id']+';NOV')
+                                    input(value=val['NOV'], type='text', name=val['id']+';NOV',disabled=disable_form)
                                 td
                                     input(value=val['DEC'], type='hidden', name='_'+val['id']+';DEC')
-                                    input(value=val['DEC'], type='text', name=val['id']+';DEC')
+                                    input(value=val['DEC'], type='text', name=val['id']+';DEC',disabled=disable_form)
                         else                    
                             tr(class="top")
                                 th(colspan="5")=val['name']
@@ -110,4 +110,5 @@ html
                                 th OCT
                                 th NOV
                                 th DEC
-            input(type='submit')
+            if disable_form==false
+                input(type='submit')

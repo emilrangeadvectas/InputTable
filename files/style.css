@@ -1,223 +1,24 @@
+* { font-family: Arial, Helvetica, sans-serif; }
+a { color: #900; }
+body { padding:0; margin:0; }
+input { width:100px; height:20px; }
+h2{font-size:18px; padding:0;margin:10px 10px 10px 10px; color: #333; }
+h3{font-size:14px; padding:0;    margin: 20px 5% 0 5%; }
+header h1 { margin:0; padding:8px; font-size:22px; padding-bottom:0; float:left; }
+header { background: #f8f8f8; border-bottom: 1px solid #ddd; }
+header .end{clear:both;width:0;height:0; }
+table.input { margin:0; padding:0; width: auto; border-collapse: collapse; border-spacing: 0; width:100%; }
+.login_info { font-size:11px; float:right; }
+.standard_form { background: #eee; padding: 10px; display:block; margin: 20px 5% 0 5%;}
+table.standard { border-collapse: separate; border-spacing: 0; padding: 0px; margin: 20px 5% 0 5%; width: 90%; }
+table.standard form { padding:0; margin:0 }
+table.standard th { padding:4px; background: #111; color: #eee; font-size: 12px; text-align:left; }
+table.standard input { padding: 1px }
+table.standard td { padding:4px; background: #ddd; font-size: 12px }
+table.standard tr:nth-child(even) td { background: #eee }
 
-*{font-family: Arial, Helvetica, sans-serif}
+table.standard td.review {background: #ddee33}
+table.standard td.sign {background: #22ee22}
+table.standard tr:nth-child(even) td.review { background: #ddff33 }
+table.standard tr:nth-child(even) td.sign { background: #22ff22 }
 
-button {
-  display:inline;
-}
-
-div{
-  margin:0;
-  padding:0;
-}
-
-header h1{margin:0;padding:8px;font-size:22px; padding-bottom:0;float:left}
-
-.control_panel {
-  position: relative;
-}
-
-header{
-    background: #f8f8f8;
-    border-bottom: 1px solid #ddd
-}
-
-header.locked{
-    background: #eeaaff;
-    border-bottom: 1px solid #dd99ee
-}
-
-header .end{clear:both;width:0;height:0}
-
-table.input{
-  margin:0;
-  padding:0;
-  width: auto;
-  border-collapse: collapse;
-  border-spacing: 0;
-  width:100%
-}
-
-
-.input th{
-    font-weight:bold;
-    font-size: 14px;
-    color: #575757;
-    border-bottom: 2px solid #575757;
-    padding: 8px;
-  
-}
-
-.input td{
-    font-size: 14px;
-    color: #575757;
-    border-bottom: 2px solid #575757;  
-}
-
-td.key{text-align:left; padding-left:20px; font-size:13px}
-
-
-
-
-button{
-    margin: 2px;
-}
-
-
-.main {
-  border-top: 1px solid #e6e6e6;
-}
-
-.error{background:#fcc !important;}
-
-
-body {
-    padding:0;
-    margin:0;	
-}
-
-.row:hover {
-    background: #e9ffff !important;
-    cursor: pointer;
-}
-
-.standard_form{
-    background: #eee;
-    padding: 10px;
-    display:block;
-    margin: 20px 5% 0 5%;
-}
-
-h2{font-size:18px; padding:0;margin:10px 10px 10px 10px; color: #333}
-
-h3{font-size:14px; padding:0;    margin: 20px 5% 0 5%;}
-
-.standard{
-    border-collapse: separate;
-    border-spacing: 0;
-    padding: 0px;
-    margin: 20px 5% 0 5%;
-    width: 90%;
-    
-}
-
-.standard form{
-    padding:0;
-    margin:0
-}
-
-.standard th{
-    padding:4px;
-    background: #111;
-    color: #eee;
-    font-size: 12px;
-    text-align:left
-}
-
-.standard input{
-    padding: 1px
-}
-
-.standard td{
-    padding:4px;
-    background: #ddd;
-    font-size: 12px
-}
-
-.standard tr:nth-child(even) td{
-  background: #eee
-}
-
-.scroller {
-
-  width: 20px;
-  margin: 0;
-  padding: 0;
-  overflow:hidden;
-  overflow-x: hidden;
-  overflow-y: hidden;
-}
-
-.login_info{
-    font-size:11px;
-    float:right
-}
-
-a{color: #900}
-
-.clicksort:hover {
-    background-color: #f8f8f8;
-    cursor: pointer;
-}
-
-header input[type=submit]
-{
-    background: #dd99ee;
-    padding: 7px;
-    float:right;
-    height: 30px;
-    margin-top:5px;
-    margin-right: 10px
-}
-
-header.locked input[type=submit]{
-    background: #fff;
-}
-
-header>a
-{
-    float:left;
-    padding: 10px
-}
-
-.scroller {
-
-  width: 20px;
-  margin: 0;
-  padding: 0;
-  overflow:hidden;
-  overflow-x: hidden;
-  overflow-y: scroll;
-
-}
-
-
-.input td{
-  padding: 10px;
-  vertical-align: center;
-  text-align: center;
-  border-bottom: 2px solid #f5ecf7;
-}
-
-.input tr:nth-child(even) td{
-  background: #fff9ff
-}
-
-
-
-input{width:100px;height:20px}
-
-.row::before {
-  content: normal !important;
-}
-
-.row::after {
-  content: normal !important;
-}
-
-.scroll_dummy {
-  height: 18600px;
-}
-
-
-input[type="text"]{
-	text-align:center;
-    background: #fff;
-    border: 1px solid #888;
-    border-radius: 3px;
-}
-
-input[disabled=""]{
-    background: #f3f3f3;
-    color: #888;
-    
-}

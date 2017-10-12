@@ -1,28 +1,25 @@
-*{font-family: Arial, Helvetica, sans-serif; font-size: 14px; color:#575757}
-.top th{border-bottom: 2px solid #575757}
-table{
-  border-collapse: collapse;
-  border-spacing: 0;
-  }
-  
-  td{min-width:10px}
-  
-  .sum th, .sum td{ background: #ffe8ff; border-bottom: 2px solid #ccc5ce }
-  th{padding:8px}
+table.plan { font-family: Arial, Helvetica, sans-serif; font-size: 14px; color:#575757; }
+table.plan .top th { border-bottom: 2px solid #575757; }
+table.plan { border-collapse: collapse; border-spacing:0; width:100%; }
+table.plan td { min-width:10px; }
+table.plan .sum th, table.plan .sum td { background: #ffe8ff; border-bottom: 2px solid #ccc5ce; }
+table.plan th { padding:8px; }
+table.plan .sum th { border-left: 2px solid #ccc5ce; }
+table.plan th.header { border-left: 2px solid #ccc5ce; border-bottom: 1px solid #ccc5ce; border-top: 2px solid #ccc5ce; margin-top:20px; }
+table.plan td { border-bottom: 2px solid #f5ecf7; padding:8px; }
+table.plan tr:nth-child(even) td { background:#fff9ff; }
+table.plan tr.sum:nth-child(even) td { background:#ffe8ff; }
+table.plan .edge { border-left: 2px solid #ccc5ce; }
+table.plan .void { border:0 !important; background:none !important; }
+table.plan .top { border-top: 2px solid #ccc5ce; }
+table.plan .sum td { font-weight:bold; text-align:center; }
+table.plan input[type="text"] { text-align:center; background: #fff; border: 1px solid #888; border-radius: 3px; }
+table.plan input[disabled=""] { background: #f3f3f3; color: #888; }
 
-  .sum th{border-left: 2px solid #ccc5ce;}
-  
-  th.header{border-left: 2px solid #ccc5ce; border-bottom: 1px solid #ccc5ce; border-top: 2px solid #ccc5ce; margin-top:20px; }
-  
-  td{border-bottom: 2px solid #f5ecf7; padding:8px;}
-  tr:nth-child(even) td{background:#fff9ff;}
+header.review { background: #ddee33; border-bottom: 1px solid #ccbb11; }
+header.sign { background: #22ee22; border-bottom: 1px solid #ccbb11; }
 
-   tr.sum:nth-child(even) td{background:#ffe8ff;}
+header input[type=submit]{ background: #eee; padding: 7px; float:right; height: 30px; margin-top:5px; margin-right: 10px; }
 
-  .edge{border-left: 2px solid #ccc5ce;}
-  
-  .void{border:0 !important; background:none !important}
-  
-  .top{border-top: 2px solid #ccc5ce }
-  
-  .sum td{font-weight:bold; text-align:center}
+header input[type=submit].review { background: #ddee33; }
+header input[type=submit].sign { background: #22ee22; }

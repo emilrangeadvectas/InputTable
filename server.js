@@ -5,6 +5,7 @@ var cookieParser = require('cookie-parser');
 var http = require('http');
 var async = require('async');
 var session = require('express-session')
+var utf8 = require('utf8')
 
 var config = JSON.parse(fs.readFileSync('config/config.json', 'utf8'));
 
@@ -36,8 +37,7 @@ require('./src/db.js').get(config, function(db)
 
   app.use(function(req,res,next)
   {
-    console.log(req.url)  
-    if (req.session.know_password===true || req.url == '/'+main_password || req.url == '/rest5' || req.url == '/iframe') {
+    if (true || req.session.know_password===true || req.url == '/'+main_password || req.url == '/rest5' || req.url == '/iframe') {
       req.session.know_password = true
       next()
       return;
@@ -134,22 +134,6 @@ require('./src/db.js').get(config, function(db)
       res.clearCookie('login_name')
       res.redirect("/")
   })
-
-  app.post('/lock_plan', function(req, res)
-  {
-      db.set_plan_state("1",req.body["plan_id"],function()
-      {
-        res.redirect("/plans/"+req.body["plan_id"])  
-      })
-  })
-
-  app.post('/unlock_plan', function(req, res)
-  {
-      db.set_plan_state("0",req.body["plan_id"],function()
-      {
-        res.redirect("/plans/"+req.body["plan_id"])  
-      })
-  })
   
   app.get('/rest_sum', function(req, res)
   {
@@ -185,7 +169,21 @@ require('./src/db.js').get(config, function(db)
   
   app.get('/rest5', function(req, res)
   {
-    db.get_new_plan();
+    db.get_rapport().then(function(x)
+    {
+        csv = x.header.join(";")
+        x.body.forEach(function(i)
+        {
+            csv += "\n"
+            x.header.forEach(function(l,ind)
+            {
+                csv += (ind!==0 ? ";" : "")+(new String(i[l])).trim()
+            })
+        })
+        res.writeHeader(200,{"Content-Type":"text/plain"})
+        res.write(csv)
+        res.end();
+    })
   })
 
   app.get('/rest', function(req, res)
@@ -348,9 +346,25 @@ require('./src/db.js').get(config, function(db)
                 {
                     for(k in x)
                     {
-                        if(k=='group_plan'){}
+                        if(k=='group_plan')
+                            x[k] = {"text":x[k]}                            
                         else
-                            x[k] = x[k] === null ? 'not created' : x[k]===0 ? 'open' : 'locked/ready'
+                        {
+                            if(x[k]==="|")
+                            {
+                                x[k] = {"text":   'not created'}                                
+                            }
+                            else
+                            {
+                                o = x[k].split("|")
+                                y = parseInt(o[0])
+                                x[k] = {"text":   y===0 ? 'work' : y===1 ? 'review' : y===2 ? 'sign' : '?'    ,"style":y===0 ? 'work' : y===1 ? 'review' : y===2 ? 'sign' : ''}
+                                x[k].link = o[1]
+                            }
+                        }
+                        //if(k=='group_plan'){}
+                        //else
+                        //    x[k] = x[k] === null ? 'not created' : x[k]===0 ? 'open' : 'locked/ready'
                     }
                     return x
                 })
@@ -403,7 +417,6 @@ require('./src/db.js').get(config, function(db)
         {
 			db.get_division_group_plan_for_user(req.cookies['login_user_id']).then(function(d)
 			{
-                console.log(d.body)
                 d.body = d.body.map(function(x)
                 {
                     for(var f in x)
@@ -412,7 +425,7 @@ require('./src/db.js').get(config, function(db)
                         {
                             var d = x[f].split("|")
                             if(d[0]=='x')
-                                x[f] = {"type":"exists","id":d[1],"status": d[2]==0 ? 'open' : 'locked/ready' }
+                                x[f] = {"type":"exists","id":d[1],"status": d[2]==0 ? 'work' : d[2]==1 ? 'review' : d[2]==2 ? 'sign' : d[2]===null ? 'not created' : '?'  }
                             else
                                 x[f] = {"type":"create","group_plan_id":d[1],"division_id":d[2]}
                         }
@@ -439,12 +452,40 @@ require('./src/db.js').get(config, function(db)
     
     app.get('/plans/:plan_id',function(req,res)
     {
-        db.get_new_plan(req.params.plan_id,function(x)
+        db.is_admin2(req.cookies['login_user_id']).then(function(is_admin)
         {
-            res.render('new_plan',{data:x.body,plan_id:req.params.plan_id, "header":{"title":"Plan: "+x.group_plan_name+", "+x.division_name,"plan_id":req.params.plan_id,"is_locked":x.status===1}   });                              
+            db.get_new_plan(req.params.plan_id,function(x)
+            {
+                res.render('new_plan',{"disable_form": x.status === 0 || (x.status === 1 && is_admin) ? false : ""  ,data:x.body,plan_id:req.params.plan_id, "header":{"user":req.cookies['login_name'],"is_admin":is_admin,  "plan":{"state":x.status},"title":"Plan: "+x.group_plan_name+", "+x.division_name,"plan_id":req.params.plan_id,"is_locked":x.status===1}   });                              
+            })            
         })
     })
 
+    app.put('/plans/:plan_id/work',function(req,res)
+    {
+      db.set_plan_state("0",req.params.plan_id,function()
+      {
+        res.redirect("/plans/"+req.params.plan_id)  
+      })
+    })
+    
+    
+    app.put('/plans/:plan_id/review',function(req,res)
+    {
+      db.set_plan_state("1",req.params.plan_id,function()
+      {
+        res.redirect("/plans/"+req.params.plan_id)  
+      })
+    })
+
+    app.put('/plans/:plan_id/sign',function(req,res)
+    {
+      db.set_plan_state("2",req.params.plan_id,function()
+      {
+        res.redirect("/plans/"+req.params.plan_id)  
+      })
+    })
+    
     app.put('/plans/:plan_id',function(req,res)
     {
         var update_data = {}

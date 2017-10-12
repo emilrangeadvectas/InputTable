@@ -135,7 +135,6 @@ function get_user_plan(mssql,user,plan_id,callback)
 	  .input('plan_id',mssql.VarChar(255),plan_id)
       .query(sql,function(err,recordsets)
       {
-          console.log(err)
         var t = recordsets.recordsets[0][0].table;
         var s = recordsets.recordsets[0][0].status;
         var n = recordsets.recordsets[0][0].name;
@@ -358,7 +357,6 @@ exports.get = function(config,callback)
                       {
                         recordsets.recordsets[0].forEach(function(i)
                         {
-                            console.log(i)
                             if(i['value']!==null)
                                 body.push([x['user'],x['name'],i['_key'],i['field'],i['value']])
                         })
@@ -428,8 +426,6 @@ exports.get = function(config,callback)
 
         db.get_plan_state = function(user,plan_id,callback)
         {
-
-            
             var sql = "SELECT status, name FROM input_table JOIN input_table_group_plans ON input_table_group_plans.id = input_table.group_plan_id WHERE input_table.[id] = @plan_id ";
             new mssql.Request()
               .input('plan_id',mssql.BigInt,plan_id)
@@ -442,16 +438,13 @@ exports.get = function(config,callback)
         
         db.set_plan_state = function(state,plan_id,callback)
         {
-            console.log(plan_id)
+            console.log(state+","+plan_id)
             var sql = "UPDATE input_table SET status = @state WHERE id = @plan_id";
             new mssql.Request()
               .input('state',mssql.BigInt,state)
               .input('plan_id',mssql.BigInt,plan_id)
               .query(sql,function(err,r)
               {
-                  console.log("---------------")
-                  console.log(err)
-                  console.log(r)
                   callback();              
               })
         }
@@ -600,6 +593,20 @@ exports.get = function(config,callback)
             })
         }
         
+        db.is_admin2 = function(user_id)
+        {
+            return new Promise(function(res,rej)
+			{
+                sql = "SELECT is_admin FROM input_table_users WHERE id = @user_id"; ;
+                new mssql.Request()
+                    .input('user_id',mssql.BigInt,user_id)
+                    .query(sql,function(err,r)
+                    {
+                        res(r.recordset[0]['is_admin']===1)
+                    })            
+            });
+        }
+        
         db.create_plan = function(division_id,group_plan_id,callback)
         {
             var sql = "INSERT INTO input_table ([_division_id],[_group_plan_id],[status]) VALUES (@division_id,@group_plan_id,0)";
@@ -637,7 +644,7 @@ exports.get = function(config,callback)
 
                           "DECLARE @PivotTableSQL NVARCHAR(MAX) "+
                           "SET @PivotTableSQL = N' "+
-                          "SELECT * FROM  (SELECT itd.name AS d ,status, itgp.name AS group_plan FROM input_table_group_plans AS itgp "+
+                          "SELECT * FROM  (SELECT itd.name AS d ,CONCAT(status,''|'',  (SELECT it.id FROM input_table AS it WHERE itd.id = it._division_id AND itgp.id = it._group_plan_id )   ) as status, itgp.name AS group_plan FROM input_table_group_plans AS itgp "+
                           "JOIN input_table_division AS itd ON 1=1 "+
                           "LEFT JOIN input_table AS it ON it._division_id = itd.id AND it._group_plan_id = itgp.ID) AS r "+
                           "PIVOT (   max([status]) for [d] IN ( "+
@@ -894,6 +901,33 @@ exports.get = function(config,callback)
 					})          
 			});
         }
+        
+        db.get_rapport = function()
+        {
+            return new Promise( function(res,rej)
+            {
+                var sql = "SELECT ita.name AS account_name ,it.value AS value, itgp.name AS group_plan, itd.name AS division, [month] AS month, itap.name AS parent_account "+
+                          "FROM "+
+                          "( "+
+                          "SELECT MAX(id) AS id FROM input_table_input GROUP BY _plan_id, _accounts_id, [month] "+
+                          ") AS it_max_id "+
+                          "JOIN input_table_input AS it ON it.id = it_max_id.id "+
+                          "JOIN input_table_accounts AS ita ON ita.id = it._accounts_id "+
+                          "JOIN input_table AS it_ ON it_.id = it._plan_id "+
+                          "JOIN input_table_group_plans AS itgp ON itgp.ID = it_._group_plan_id "+
+                          "JOIN input_table_division AS itd ON itd.id = it_._division_id "+
+                          "JOIN input_table_accounts AS itap ON itap.id = ita.parent_id ";   
+
+                new mssql.Request()
+                    .query(sql,function(err,r)
+                    {
+                        res( {"body":r.recordset, "header":['account_name','value','group_plan','division','month','parent_account']} )
+                    }) 
+            })
+        }
+    
         callback(db)
 	})
+    
+
 }

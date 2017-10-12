@@ -1,4 +1,4 @@
-header(class=header.is_locked ? 'locked' : '')
+header(class=header.plan && header.plan.state==1 ? 'review' : (header.plan && header.plan.state==2 ? 'sign' : ''))
  div(class='login_info')
   b=header.user+' '
   a(href='/logout') logout
@@ -10,14 +10,30 @@ header(class=header.is_locked ? 'locked' : '')
     a(href='/plans/') Plan view
 
  if header.plan_id
-  if header.is_locked
-   form(method='POST',action='/unlock_plan')
-    input(type='hidden', name='plan_id' value=header.plan_id)
-    input(type='submit', value="unlock")
-  else
-   form(method='POST',action='/lock_plan')
-    input(type='hidden', name='plan_id' value=header.plan_id)
-    input(type='submit', value="lock")
- //h1=group_plan_name
+  if header.plan.state == 0
+   form(method='POST',action='/plans/'+header.plan_id+'/review')
+    input(type='hidden', value='PUT', name='_method')
+    input(type='submit', value="review" class="review")
+   if header.is_admin
+    form(method='POST',action='/plans/'+header.plan_id+'/sign')
+     input(type='hidden', value='PUT', name='_method')
+     input(type='submit', value="sign" class="sign")
+
+  else if header.plan.state == 1 && header.is_admin
+   form(method='POST',action='/plans/'+header.plan_id+'/work')
+    input(type='hidden', value='PUT', name='_method')
+    input(type='submit', value="work")
+   form(method='POST',action='/plans/'+header.plan_id+'/sign')
+    input(type='hidden', value='PUT', name='_method')
+    input(type='submit', value="sign" class="sign")
+    
+  else if header.plan.state == 2 && header.is_admin
+   form(method='POST',action='/plans/'+header.plan_id+'/work')
+    input(type='hidden', value='PUT', name='_method')
+    input(type='submit', value="work")
+   form(method='POST',action='/plans/'+header.plan_id+'/review')
+    input(type='hidden', value='PUT', name='_method')
+    input(type='submit', value="review" class="review")
+
  h1=header.title
  div(class='end')

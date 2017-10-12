@@ -21,9 +21,11 @@ html
         each val in user_group_plan.body
             tr
                 each h in user_group_plan.header
-                    td
-                        =val[h]
-
+                    td(class=val[h]['style'])
+                        if val[h]['link']
+                            a(href='/plans/'+val[h]['link'])=val[h]['text']
+                        else
+                            =val[h]['text']
     table(class="standard")
         tr
             each val in division_user.header
