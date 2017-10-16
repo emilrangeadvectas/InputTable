@@ -75,6 +75,7 @@ require('./src/db.js').get(config, function(db)
   
   app.post('/create_plan', function(req, res)
   {
+      throw "dep?"
     var id = req.body['id']
     db.create_plan(  req.cookies['login_name'], id, function(s,info)
     {
@@ -82,250 +83,99 @@ require('./src/db.js').get(config, function(db)
     })
   });
 
-  app.post('/admin/create_group_plan', function(req, res)
-  {
-    db.add_group_plan(req.body['name'],function()
-    {
-        res.redirect("/admin")        
-    })
-  })
   
-  app.post('/login', function(req, res)
-  {
-    n = req.body['login_name'];
-    if(n)
-    {
-        db.get_user(n,function(a)
-        {
-            res.cookie('login_user_id',a[0].id)
-            res.cookie('login_name',n)
-            res.redirect("/")        
-            
-        })
-    }
-    else
-    {
-        res.redirect("/login")        
-    }
-  })
 
-    // ---
 
-    // ---
+    // ---- IFRAME
+    app.get('/iframe',function(req, res)
+    {
+        res.render('iframe');        
+    })
+    // ----
     
-  app.get('/iframe',function(req, res)
-  {
-    res.render('iframe');        
-  })
-  
-  
-  app.get('/login', function(req, res)
-  {
-    if(req.cookies['login_name'])
+    // ---- REST
+    app.get('/rest5', function(req, res)
     {
-        res.redirect("/")
-        return;
-    }
-    res.render('login', {});  
-  })
-
-  app.get('/logout', function(req, res)
-  {
-      res.clearCookie('login_name')
-      res.redirect("/")
-  })
-  
-  app.get('/rest_sum', function(req, res)
-  {
-    db.get_report(function(l)
-    {
-        var csv = "group_plan;field;value" + '\n';
-        l.forEach(function(u)
+        db.get_rapport().then(function(x)
         {
-            csv += u.join(";")  + '\n';
-        })
-        /*
-        csv += "2017;01;1415"  + '\n';
-        csv += "2017;02;11415"  + '\n';
-        csv += "2017;03;1415"  + '\n';
-        csv += "2017;04;1415"  + '\n';
-        csv += "2017;05;11415"  + '\n';
-        csv += "2017;06;1415"  + '\n';
-        csv += "2017;07;1415"  + '\n';
-        csv += "2017;08;6415"  + '\n';
-        csv += "2017;09;1415"  + '\n';
-        csv += "2017;10;1415"  + '\n';
-        csv += "2017;11;1415"  + '\n';
-        csv += "2017;12;1415"  + '\n';*/
-        res.write(csv)
-        res.end()         
-    })
-  })
-
-  app.get('/test', function(req, res)
-  {
-
-  })
-  
-  app.get('/rest5', function(req, res)
-  {
-    db.get_rapport().then(function(x)
-    {
-        csv = x.header.join(";")
-        x.body.forEach(function(i)
-        {
-            csv += "\n"
-            x.header.forEach(function(l,ind)
+            csv = x.header.join(";")
+            x.body.forEach(function(i)
             {
-                csv += (ind!==0 ? ";" : "")+(new String(i[l])).trim()
+                csv += "\n"
+                x.header.forEach(function(l,ind)
+                {
+                    csv += (ind!==0 ? ";" : "")+(new String(i[l])).trim()
+                })
             })
+            res.writeHeader(200,{"Content-Type":"text/plain"})
+            res.write(csv)
+            res.end();
         })
-        res.writeHeader(200,{"Content-Type":"text/plain"})
-        res.write(csv)
-        res.end();
     })
-  })
-
-  app.get('/rest', function(req, res)
-  {
-//    res.writeHeader(200,{"Content-Type":"text/csv"})
-    res.writeHeader(200,{"Content-Type":"text"})
-
-    var csv = "user;key;field;value;group_plan";
-    
-    db.get_all_users(function(users)
-    {
-        var add_csv_report_to_body = function(user,d)
-        {
-            db.get_raw_newest_data(function(matrix)
-            {
-                matrix.forEach(function(x)
-                {
-                    csv += "\n"+(x.join(";"))
-                })
-                d();
-            },user)        
-        }
-
-        async.each(users,add_csv_report_to_body,function()
-        {
-            res.write(csv)
-            res.end()  
-        });        
-    })
-  })
-
-  app.get('/rest2', function(req, res)
-  {
-//    res.writeHeader(200,{"Content-Type":"text/csv"})
-    res.writeHeader(200,{"Content-Type":"text"})
-
-    var csv = "user;key;field;value;group_plan";
-    
-    db.get_all_users(function(users)
-    {
-        var add_csv_report_to_body = function(user,d)
-        {
-            db.get_raw_newest_data2(function(matrix)
-            {
-                matrix.forEach(function(x)
-                {
-                    csv += "\n"+(x.join(";"))
-                })
-                d();
-            },user)        
-        }
-
-        async.each(users,add_csv_report_to_body,function()
-        {
-            res.write(csv)
-            res.end()  
-        });        
-    })
-  })
+    // ----
   
-  app.get('/rest_old', function(req, res)
-  {
-    res.writeHeader(200)
-    db.get_raw_newest_data(function(matrix)
-    {
-        header = matrix.headers.join(";")
-        body = ""
-        matrix.body.forEach(function(x)
+    // ---- /
+    app.get('/', function(req, res)
+    {          
+        if(!req.cookies['login_user_id'])
         {
-            body += "\n"+(x.join(";"))
-        })
-        res.write(header+body)
-        res.end()    
-    })
-  })
-
-/*
-  app.get('/plans/:plan_id', function(req, res)
-  {
-    db.get_matrix(function(matrix)
-    {
-      db.get_plan_state(req.cookies['login_name'],req.params.plan_id,function(state,name)
-      {
-        res.render('index', { "header":{"title":"Group plan: "+name}, matrix: matrix,"user":req.cookies['login_name'],"group_plan_id":req.params.plan_id,is_locked:state==1 });  
-      })
-    },req.cookies['login_name'],req.params.plan_id)
-
-  })
-
-  app.post('/plans/:plan_id', function(req, res)
-  {
-    var update_data = {}
-    for(key in req.body)
-    {
-      if(key[0]!="_")
-      {
-        if(req.body[key]!=req.body["_"+key])
-        {
-          update_data[key] = req.body[key]
+            res.redirect("/auth")
         }
-      }
-    }
-    db.update_and_get_matrix(function(matrix)
-    {
-      db.get_plan_state(req.cookies['login_name'],req.params.plan_id,function(state,name)
-      {
-        res.render('index', { "header":{"title":"Group plan: "+name}, matrix: matrix,"user":req.cookies['login_name'],"group_plan_id":req.params.plan_id,is_locked:state==1 });  
-      })
-    },update_data,req.cookies['login_name'],req.params.plan_id )
-  })
-  */
-  app.get('/', function(req, res)
-  {
-          
-    if(!req.cookies['login_name'])
+        else
+        {
+            res.redirect("/plans")
+        }
+    });
+    // ----
+
+    // ---- AUTH
+    app.get('/auth', function(req, res)
     {
         res.redirect("/login")
-    }
-    else
-    {
-        res.redirect("/plans")
-    }
-    
-  });
+    });
+    // ----
 
-    // ---
+    // ---- LOGIN
+    app.get('/login', function(req, res)
+    {
+        if(req.cookies['login_name'])
+        {
+            res.redirect("/")
+            return;
+        }
+        res.render('login', {});  
+    })
+
+    app.post('/login', function(req, res)
+    {
+        n = req.body['login_name'];
+        if(n)
+        {
+            db.get_user(n,function(a)
+            {
+                res.cookie('login_user_id',a[0].id)
+                res.cookie('login_name',n)
+                res.redirect("/")
+            })
+        }
+        else
+        {
+            res.redirect("/login")        
+        }
+    })
+    // ----
+
+    // ---- LOGOUT
+    app.get('/logout', function(req, res)
+    {
+        res.clearCookie('login_name')
+        res.redirect("/")
+    })    
+    // ----
+  
+    // ---- ADMIN
     app.get('/admin',function(req, resp)
     {
-        /*
-		Promise.all([db.get_pivot_user_group_plan(1),db.get_division_user_state()]).then(function(l)
-		{
-            console.log("!!!!1")
-			console.log(l)
-            res.render('admin',{division_user:l[1],group_plans:[],theaders:h,header:{title:"Admin","user":req.cookies['login_name']}});        
-		})
-		.catch(function()
-		{
-            console.log("!!!!2")
-			res.status(500)
-			res.end()
-		})
-        */
         var t = undefined
         db.get_pivot_user_group_plan().then(function(o)
         {
@@ -362,13 +212,9 @@ require('./src/db.js').get(config, function(db)
                                 x[k].link = o[1]
                             }
                         }
-                        //if(k=='group_plan'){}
-                        //else
-                        //    x[k] = x[k] === null ? 'not created' : x[k]===0 ? 'open' : 'locked/ready'
                     }
                     return x
                 })
-                
                 t = {"header":Object.keys(t.recordset[0]),"body":body}
             }
             resp.render('admin',{division_user:du, user_group_plan:t,header:{title:"Admin","user":req.cookies['login_name']}});        
@@ -378,38 +224,19 @@ require('./src/db.js').get(config, function(db)
             resp.status(500)
             resp.end()
         })
-		/*
-        db.valid_admin(function(valid_admin)
-        {
-            if(valid_admin)
-            {
-                db.get_pivot_user_group_plan(function(d,h)
-                {
-                    db.get_division_user_state(function(du)
-                    {
-                      
-                        d = d.map(function(x)
-                        {
-                            for(var f in x)
-                            {
-                                if(f!="name")
-                                    x[f] = status_code_to_text(x[f])
-                            }
-                            return x;
-                        })      
-                        h.push("export")            
-                        console.log(du)
-                        res.render('admin',{division_user:du,group_plans:d,theaders:h,header:{title:"Admin","user":req.cookies['login_name']}});        
-                    });
-                })
-            }
-            else
-            {
-                res.render('admin',{group_plans:[],theaders:[],header:{title:"Admin","user":req.cookies['login_name']}});        
-            }
-        })*/
     })
 
+
+    app.post('/admin/create_group_plan', function(req, res)
+    {
+        db.add_group_plan(req.body['name'],function()
+        {
+            res.redirect("/admin")        
+        })
+    })
+
+    // ----
+    
     // ---- PLAN:
     app.get('/plans', function(req, res)
     {
@@ -506,7 +333,6 @@ require('./src/db.js').get(config, function(db)
     })
     // ----
     
-    // ---
     
     http_server = http.createServer(app);
     http_server.listen(8066)
