@@ -712,8 +712,8 @@ exports.get = function(config,callback)
                           " DECLARE @PivotTableSQL NVARCHAR(MAX) "+
 
                           "SET @PivotTableSQL = N' "+
-                          "SELECT * FROM  (  SELECT [name], [rights],[name] FROM input_table_divsion_user JOIN input_table_users ON input_table_divsion_user.user_id = input_table_users.id JOIN input_table_division ON input_table_divsion_user.divions_id = input_table_division.id) AS r "+
-                          "PIVOT (   max([rights]) for [name] IN ("+
+                          "SELECT * FROM  (  SELECT input_table_users.[name], [rights],input_table_division.[name] AS d_name FROM input_table_divsion_user JOIN input_table_users ON input_table_divsion_user.user_id = input_table_users.id JOIN input_table_division ON input_table_divsion_user.divions_id = input_table_division.id) AS r "+
+                          "PIVOT (   max([rights]) for [d_name] IN ("+
                           "' + @PivotColumnHeaders + '"+
                           "   ) ) as t; "+
                           "  '"+
@@ -722,6 +722,7 @@ exports.get = function(config,callback)
                 new mssql.Request()
                     .query(sql,function(err,r)
                     {                    
+                        console.log(err)
                         res( {"body":r.recordset, "header":Object.keys(r.recordset[0]) })
                     })      
                 
@@ -735,9 +736,10 @@ exports.get = function(config,callback)
             var sql = "SELECT [id] FROM input_table_users WHERE name = @name"
 
             new mssql.Request()
-                .input('username',mssql.VarChar(255),user_name)
+                .input('name',mssql.VarChar(255),user_name)
                 .query(sql,function(err,r)
                 {
+                    console.log(err)
                     c(r.recordset)
                 });
             
@@ -848,6 +850,18 @@ exports.get = function(config,callback)
             )    
         }
 
+        db.get_user_id_by_qlik_user = function(qlik_user_id, qlik_user_directory)
+        {
+            return new Promise(function(res,rej)
+            {
+                var sql = "SELECT id FROM input_table_users WHERE qlik_user = '"+qlik_user_id+"|"+qlik_user_directory+"'";
+				new mssql.Request()
+					.query(sql,function(err,r)
+					{
+                        res(r.recordset[0].id)
+                    });
+            })
+        }
         
         db.get_division_group_plan_for_user = function(user_id)
         {
@@ -886,7 +900,7 @@ exports.get = function(config,callback)
 					.input('user_id',mssql.VarChar(255),user_id) //can we have this as a bigint some how. SET @user_id = @user_id do not seem to allow it (maybe we can cast it)
 					.query(sql,function(err,r)
 					{
-						if(err || r.recordset.length==0) rej();
+						if(err || r.recordset===undefined || r.recordset.length==0) rej();
 						else res( {"body":r.recordset, "header":Object.keys(r.recordset[0]) })
 					})          
 			});

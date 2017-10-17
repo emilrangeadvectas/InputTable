@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 var fs = require('fs');
 var cookieParser = require('cookie-parser');
 var http = require('http');
+var https = require('https');
 var async = require('async');
 var session = require('express-session')
 var qps_auth = require('./src/qps_auth.js')
@@ -10,6 +11,9 @@ var config = JSON.parse(fs.readFileSync('config/config.json', 'utf8'));
 
 main_password = "jkl"
 
+var https_options = {
+  pfx: fs.readFileSync("c:\\certs\\server.pfx")
+};
 
 function status_code_to_text(x)
 {
@@ -36,7 +40,13 @@ require('./src/db.js').get(config, function(db)
 
   app.use(function(req,res,next)
   {
-    if (req.session.know_password===true || req.url == '/'+main_password || req.url == '/rest5' || req.url == '/iframe') {
+      console.log("==========================================")
+      console.log("url: "+req.url)
+      console.log("user: "+req.session.user_id)
+      console.log("- - - - - - - - - - - - - - - - - - - - - ")
+      
+    if (req.session.know_password===true || req.url == '/'+main_password || req.url == '/rest5' || req.url == '/iframe')
+    {
       req.session.know_password = true
       next()
       return;
@@ -104,7 +114,7 @@ require('./src/db.js').get(config, function(db)
     // ---- /
     app.get('/', function(req, res)
     {          
-        if(!req.cookies['login_user_id'])
+        if(!req.session.user_id)
         {
             res.redirect("/auth")
         }
@@ -116,22 +126,30 @@ require('./src/db.js').get(config, function(db)
     // ----
 
     // ---- AUTH
-    app.get('/auth', function(req, res)
+    app.get('/auth/:x_qlik_session?', function(req, res)
     {
-        qps_auth.auth().then(function(user_id)
+        console.log(req.cookies)
+        var x_qlik_session = req.params.x_qlik_session ? req.params.x_qlik_session : req.cookies['X-Qlik-Session'];
+        
+        qps_auth.auth(x_qlik_session,db).then(function(user_id)
         {
             if(user_id!==false)
             {
-                res.cookie('login_user_id',user_id)
+                console.log('as user id = '+user_id)
+                req.session.user_id = user_id
                 res.redirect("/")               
             }
             else
             {
+                console.log("could not auth")
+                console.log("redirects to login page")
                 res.redirect("/login")
             }
         
-        }).catch(function()
+        }).catch(function(a)
         {
+            console.log(a)
+            console.log("error in auth. redirect to login")
             res.redirect("/login")            
         })
     });
@@ -140,7 +158,7 @@ require('./src/db.js').get(config, function(db)
     // ---- LOGIN
     app.get('/login', function(req, res)
     {
-        if(req.cookies['login_user_id'])
+        if(req.session.user_id)
         {
             res.redirect("/")
             return;
@@ -155,7 +173,7 @@ require('./src/db.js').get(config, function(db)
         {
             db.get_user(n,function(a)
             {
-                res.cookie('login_user_id',a[0].id)
+                req.session.user_id = a[0].id
                 res.redirect("/")
             })
         }
@@ -169,7 +187,7 @@ require('./src/db.js').get(config, function(db)
     // ---- LOGOUT
     app.get('/logout', function(req, res)
     {
-        res.clearCookie('login_user_id')
+        req.session.user_id = null
         res.redirect("/")
     })    
     // ----
@@ -241,9 +259,9 @@ require('./src/db.js').get(config, function(db)
     // ---- PLAN:
     app.get('/plans', function(req, res)
     {
-        db.is_admin2(req.cookies['login_user_id']).then(function(is_admin)
+        db.is_admin2( req.session.user_id ).then(function(is_admin)
         {
-			db.get_division_group_plan_for_user(req.cookies['login_user_id']).then(function(d)
+			db.get_division_group_plan_for_user(req.session.user_id).then(function(d)
 			{
                 d.body = d.body.map(function(x)
                 {
@@ -261,11 +279,11 @@ require('./src/db.js').get(config, function(db)
                     return x
                 })
                 
-                res.render('plans', { plans:d,"header":{"title":"Plans","user":req.cookies['login_user_id'],"is_admin":is_admin,"hide_plan_view_link":true,}})                
+                res.render('plans', { plans:d,"header":{"title":"Plans","user":req.session.user_id,"is_admin":is_admin,"hide_plan_view_link":true,}})                
 			})
 			.catch(function()
 			{
-                res.render('plans', { plans:{header:[],body:[]},"header":{"title":"Plans","user":req.cookies['login_user_id'],"is_admin":is_admin,"hide_plan_view_link":true,}})                
+                res.render('plans', { plans:{header:[],body:[]},"header":{"title":"Plans","user":req.session.user_id,"is_admin":is_admin,"hide_plan_view_link":true,}})                
 			})   
         })
     })
@@ -280,7 +298,7 @@ require('./src/db.js').get(config, function(db)
     
     app.get('/plans/:plan_id',function(req,res)
     {
-        db.is_admin2(req.cookies['login_user_id']).then(function(is_admin)
+        db.is_admin2(req.session.user_id).then(function(is_admin)
         {
             db.get_new_plan(req.params.plan_id,function(x)
             {
@@ -334,7 +352,16 @@ require('./src/db.js').get(config, function(db)
     })
     // ----
     
+
+    if(!https_options)
+    {
+        web_server = http.createServer(app);
+        web_server.listen(8066)                
+    }
+    else
+    {
+        web_server = https.createServer(https_options, app);
+        web_server.listen(8066)        
+    }
     
-    http_server = http.createServer(app);
-    http_server.listen(8066)
 });
