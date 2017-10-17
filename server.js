@@ -5,8 +5,7 @@ var cookieParser = require('cookie-parser');
 var http = require('http');
 var async = require('async');
 var session = require('express-session')
-var utf8 = require('utf8')
-
+var qps_auth = require('./src/qps_auth.js')
 var config = JSON.parse(fs.readFileSync('config/config.json', 'utf8'));
 
 main_password = "jkl"
@@ -37,7 +36,7 @@ require('./src/db.js').get(config, function(db)
 
   app.use(function(req,res,next)
   {
-    if (true || req.session.know_password===true || req.url == '/'+main_password || req.url == '/rest5' || req.url == '/iframe') {
+    if (req.session.know_password===true || req.url == '/'+main_password || req.url == '/rest5' || req.url == '/iframe') {
       req.session.know_password = true
       next()
       return;
@@ -73,18 +72,6 @@ require('./src/db.js').get(config, function(db)
     });
   })
   
-  app.post('/create_plan', function(req, res)
-  {
-      throw "dep?"
-    var id = req.body['id']
-    db.create_plan(  req.cookies['login_name'], id, function(s,info)
-    {
-        res.render('info', { header: s ? "create plan success" : "create plan failed", info: info ? info : "click ok to goto plan" });        
-    })
-  });
-
-  
-
 
     // ---- IFRAME
     app.get('/iframe',function(req, res)
@@ -131,14 +118,29 @@ require('./src/db.js').get(config, function(db)
     // ---- AUTH
     app.get('/auth', function(req, res)
     {
-        res.redirect("/login")
+        qps_auth.auth().then(function(user_id)
+        {
+            if(user_id!==false)
+            {
+                res.cookie('login_user_id',user_id)
+                res.redirect("/")               
+            }
+            else
+            {
+                res.redirect("/login")
+            }
+        
+        }).catch(function()
+        {
+            res.redirect("/login")            
+        })
     });
     // ----
 
     // ---- LOGIN
     app.get('/login', function(req, res)
     {
-        if(req.cookies['login_name'])
+        if(req.cookies['login_user_id'])
         {
             res.redirect("/")
             return;
@@ -154,7 +156,6 @@ require('./src/db.js').get(config, function(db)
             db.get_user(n,function(a)
             {
                 res.cookie('login_user_id',a[0].id)
-                res.cookie('login_name',n)
                 res.redirect("/")
             })
         }
@@ -168,7 +169,7 @@ require('./src/db.js').get(config, function(db)
     // ---- LOGOUT
     app.get('/logout', function(req, res)
     {
-        res.clearCookie('login_name')
+        res.clearCookie('login_user_id')
         res.redirect("/")
     })    
     // ----
@@ -217,7 +218,7 @@ require('./src/db.js').get(config, function(db)
                 })
                 t = {"header":Object.keys(t.recordset[0]),"body":body}
             }
-            resp.render('admin',{division_user:du, user_group_plan:t,header:{title:"Admin","user":req.cookies['login_name']}});        
+            resp.render('admin',{division_user:du, user_group_plan:t,header:{title:"Admin","user":req.cookies['login_user_id']}});        
         })
         .catch(function()
         {
@@ -240,7 +241,7 @@ require('./src/db.js').get(config, function(db)
     // ---- PLAN:
     app.get('/plans', function(req, res)
     {
-        db.is_admin(req.cookies['login_name'],function(is_admin)
+        db.is_admin2(req.cookies['login_user_id']).then(function(is_admin)
         {
 			db.get_division_group_plan_for_user(req.cookies['login_user_id']).then(function(d)
 			{
@@ -260,12 +261,12 @@ require('./src/db.js').get(config, function(db)
                     return x
                 })
                 
-                res.render('plans', { plans:d,"header":{"title":"Plans","user":req.cookies['login_name'],"is_admin":is_admin,"hide_plan_view_link":true,}})                
+                res.render('plans', { plans:d,"header":{"title":"Plans","user":req.cookies['login_user_id'],"is_admin":is_admin,"hide_plan_view_link":true,}})                
 			})
 			.catch(function()
 			{
-                res.render('plans', { plans:{header:[],body:[]},"header":{"title":"Plans","user":req.cookies['login_name'],"is_admin":is_admin,"hide_plan_view_link":true,}})                
-			})
+                res.render('plans', { plans:{header:[],body:[]},"header":{"title":"Plans","user":req.cookies['login_user_id'],"is_admin":is_admin,"hide_plan_view_link":true,}})                
+			})   
         })
     })
 
@@ -283,7 +284,7 @@ require('./src/db.js').get(config, function(db)
         {
             db.get_new_plan(req.params.plan_id,function(x)
             {
-                res.render('new_plan',{"disable_form": x.status === 0 || (x.status === 1 && is_admin) ? false : ""  ,data:x.body,plan_id:req.params.plan_id, "header":{"user":req.cookies['login_name'],"is_admin":is_admin,  "plan":{"state":x.status},"title":"Plan: "+x.group_plan_name+", "+x.division_name,"plan_id":req.params.plan_id,"is_locked":x.status===1}   });                              
+                res.render('new_plan',{"disable_form": x.status === 0 || (x.status === 1 && is_admin) ? false : ""  ,data:x.body,plan_id:req.params.plan_id, "header":{"user":req.cookies['login_user_id'],"is_admin":is_admin,  "plan":{"state":x.status},"title":"Plan: "+x.group_plan_name+", "+x.division_name,"plan_id":req.params.plan_id,"is_locked":x.status===1}   });                              
             })            
         })
     })

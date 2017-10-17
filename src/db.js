@@ -581,17 +581,6 @@ exports.get = function(config,callback)
                   callback_when_done();
               })
         }
-
-        db.is_admin = function(user,c)
-        {
-            var sql = "SELECT COUNT(*) AS is_admin FROM input_table_setup WHERE concat('|',admins,'|') LIKE '%|"+user+"%|'";            
-            //TODO: use an actual @param
-            new mssql.Request()
-            .query(sql,function(err,r)
-            {
-                c(r.recordset[0].is_admin===1)
-            })
-        }
         
         db.is_admin2 = function(user_id)
         {
@@ -602,6 +591,7 @@ exports.get = function(config,callback)
                     .input('user_id',mssql.BigInt,user_id)
                     .query(sql,function(err,r)
                     {
+                        console.log(user_id)
                         res(r.recordset[0]['is_admin']===1)
                     })            
             });
@@ -722,7 +712,7 @@ exports.get = function(config,callback)
                           " DECLARE @PivotTableSQL NVARCHAR(MAX) "+
 
                           "SET @PivotTableSQL = N' "+
-                          "SELECT * FROM  (  SELECT [username], [rights],[name] FROM input_table_divsion_user JOIN input_table_users ON input_table_divsion_user.user_id = input_table_users.id JOIN input_table_division ON input_table_divsion_user.divions_id = input_table_division.id) AS r "+
+                          "SELECT * FROM  (  SELECT [name], [rights],[name] FROM input_table_divsion_user JOIN input_table_users ON input_table_divsion_user.user_id = input_table_users.id JOIN input_table_division ON input_table_divsion_user.divions_id = input_table_division.id) AS r "+
                           "PIVOT (   max([rights]) for [name] IN ("+
                           "' + @PivotColumnHeaders + '"+
                           "   ) ) as t; "+
@@ -740,12 +730,12 @@ exports.get = function(config,callback)
         // -----
 
         
-        db.get_user = function(user_id,c)
+        db.get_user = function(user_name,c)
         {
-            var sql = "SELECT [id] FROM input_table_users WHERE username = @username"
+            var sql = "SELECT [id] FROM input_table_users WHERE name = @name"
 
             new mssql.Request()
-                .input('username',mssql.VarChar(255),user_id)
+                .input('username',mssql.VarChar(255),user_name)
                 .query(sql,function(err,r)
                 {
                     c(r.recordset)
