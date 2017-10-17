@@ -10,10 +10,11 @@ var qps_auth = require('./src/qps_auth.js')
 var config = JSON.parse(fs.readFileSync('config/config.json', 'utf8'));
 
 main_password = "jkl"
-
+var https_options = false
+/*
 var https_options = {
   pfx: fs.readFileSync("c:\\certs\\server.pfx")
-};
+};*/
 
 function status_code_to_text(x)
 {
