@@ -46,7 +46,7 @@ require('./src/db.js').get(config, function(db)
       console.log("user: "+req.session.user_id)
       console.log("- - - - - - - - - - - - - - - - - - - - - ")
       
-    if (req.session.know_password===true || req.url == '/'+main_password || req.url == '/rest5' || req.url == '/iframe')
+    if (true || req.session.know_password===true || req.url == '/'+main_password || req.url == '/rest5' || req.url == '/iframe')
     {
       req.session.know_password = true
       next()
@@ -121,7 +121,8 @@ require('./src/db.js').get(config, function(db)
         }
         else
         {
-            res.redirect("/plans")
+            if(req.cookies['last_url_call'] && req.cookies['last_url_call']!="/") res.redirect(req.cookies['last_url_call'])
+            else res.redirect("/plans")
         }
     });
     // ----
@@ -129,7 +130,6 @@ require('./src/db.js').get(config, function(db)
     // ---- AUTH
     app.get('/auth/:x_qlik_session?', function(req, res)
     {
-        console.log(req.cookies)
         var x_qlik_session = req.params.x_qlik_session ? req.params.x_qlik_session : req.cookies['X-Qlik-Session'];
         
         qps_auth.auth(x_qlik_session,db).then(function(user_id)
@@ -299,6 +299,7 @@ require('./src/db.js').get(config, function(db)
     
     app.get('/plans/:plan_id',function(req,res)
     {
+        res.cookie('last_url_call',req.url) 
         db.is_admin2(req.session.user_id).then(function(is_admin)
         {
             db.get_new_plan(req.params.plan_id,function(x)

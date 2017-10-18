@@ -747,26 +747,9 @@ exports.get = function(config,callback)
 
         db.get_new_plan = function(plan_id,callback)
         {
-            var sql = "WITH LevelCalculater ([parent_id],[id],[v], Level) "+
-                      "AS "+
-                      "( "+
-                      "    SELECT a.[parent_id], a.[id],CAST('10000' AS varchar(5)) AS v, "+
-                      "        0 AS Level "+
-                      "    FROM input_table_accounts AS a "+
-                      "    WHERE parent_id IS NULL "+
-                      "    UNION ALL "+
-                      "    SELECT a.[parent_id], a.[id], CAST(  concat( SUBSTRING(v,1,Level+1), [order],'000')  AS varchar(5)) as v, "+
-                      "        Level + LEN([order]) "+
-                      "    FROM input_table_accounts AS a "+
-                      "	INNER JOIN LevelCalculater AS d ON d.id = a.parent_id "+
-                      ") "+
-                      "SELECT v,a.id,a.name,d.level,a.type "+
-                      "FROM LevelCalculater AS d "+
-                      "JOIN input_table_accounts AS a ON d.id = a.id "+
-                      "ORDER BY v ";
 
 
-             sql    = "DROP TABLE IF EXISTS #temp; "+
+            var sql = "DROP TABLE IF EXISTS #temp; "+
                       "DROP TABLE IF EXISTS #temp2; "+
 
                       "WITH X ([root_id],[id],[type],[root_type],[parent_id]) "+
@@ -774,12 +757,14 @@ exports.get = function(config,callback)
                       "( "+
                       "SELECT [id] as root_id, [id],[type],a.type AS [root_type],[parent_id] "+
                       "FROM input_table_accounts AS a "+
-                      "WHERE a.type = 1 OR a.type = 2 "+
+                      "WHERE a.type = 0 OR a.type = 2 "+
 
                       "UNION ALL "+
                       "SELECT [root_id],a.[id],a.[type],[root_type],a.[parent_id] "+
                       "FROM input_table_accounts AS a "+
-                      "INNER JOIN X AS d ON ([root_type]=2 and d.[parent_id] = a.[id] and a.[type]=2 ) OR ( [root_type]=1 and (( d.[parent_id] = a.[parent_id] AND a.id != d.id AND d.type = 1 ) OR d.[id] = a.[parent_id])) "+
+                      "INNER JOIN X AS d ON ([root_type]=2 and d.[parent_id] = a.[id] and a.[type]=2 ) "+
+                      "OR ( [root_type]=1 and (( d.[parent_id] = a.[parent_id] AND a.id != d.id AND d.type = 1 ) OR d.[id] = a.[parent_id])) "+
+                      "OR ( [root_type]=0 and d.[id] = a.[parent_id] ) "+
                       ") SELECT root_id, id INTO dbo.#temp FROM X WHERE NOT (root_id = id and type = 1 and root_type = 1) GROUP BY root_id, id; "+
 
                       "SELECT * INTO dbo.#temp2 FROM  ( SELECT root_id AS id, SUM([value]) AS value, [month] FROM #temp AS x JOIN (SELECT input_table_input.* FROM input_table_input JOIN ( SELECT MAX(id) AS id FROM input_table_input WHERE _plan_id = @plan_id GROUP BY _accounts_id, [month] ) AS k ON k.id = input_table_input.id) AS iti ON iti._accounts_id = x.id GROUP BY root_id, [month] ) AS r "+
@@ -788,28 +773,30 @@ exports.get = function(config,callback)
                       "WITH LevelCalculater ([parent_id],[id],[v], Level) "+
                       "AS "+
                       "( "+
-                      "SELECT a.[parent_id], a.[id],CAST('10000' AS varchar(5)) AS v, "+
+                      "SELECT a.[parent_id], a.[id],CAST('1000000' AS varchar(7)) AS v, "+
                       "0 AS Level "+
                       "FROM input_table_accounts AS a "+
                       "WHERE parent_id IS NULL "+
                       "UNION ALL "+
-                      "SELECT a.[parent_id], a.[id], CAST(  concat( SUBSTRING(v,1,Level+1), [order],'000')  AS varchar(5)) as v, "+
+                      "SELECT a.[parent_id], a.[id], CAST(  concat( SUBSTRING(v,1,Level+1), [order],'00000')  AS varchar(7)) as v, "+
                       "Level + LEN([order]) "+
                       "FROM input_table_accounts AS a "+
                       "INNER JOIN LevelCalculater AS d ON d.id = a.parent_id "+
                       ") "+
-                      "SELECT v,a.id,a.name,d.level,a.type,[JAN],[FEB],[MAR],[APR],[MAY],[JUN],[JUL],[AUG],[SEP],[OCT],[NOV],[DEC] "+
+                      "SELECT v,a.id,a.name,d.level,a.type,a.parent_id,[JAN],[FEB],[MAR],[APR],[MAY],[JUN],[JUL],[AUG],[SEP],[OCT],[NOV],[DEC] "+
                       "FROM LevelCalculater AS d "+
                       "JOIN input_table_accounts AS a ON d.id = a.id "+
                       "LEFT JOIN #temp2 ON #temp2.id = d.id "+
                       "ORDER BY v; "+
                       
                       "SELECT it.status, itgp.name AS group_plan_name, itd.name AS division_name FROM input_table AS it JOIN input_table_group_plans AS itgp ON itgp.ID = it._group_plan_id JOIN input_table_division AS itd ON itd.id = it._division_id WHERE it.id = @plan_id";
-                                            
+                      
             new mssql.Request()
                 .input('plan_id',mssql.BigInt,plan_id)
                 .query(sql,function(err,r)
                 {            
+                    console.log(err)
+                    console.log(r.recordset)
                     callback( {"body":r.recordset, "header":Object.keys(r.recordset[0]),"status":r.recordsets[1][0]['status'],"group_plan_name":r.recordsets[1][0]['group_plan_name'],"division_name":r.recordsets[1][0]['division_name'] })
                 })          
                 
@@ -910,7 +897,7 @@ exports.get = function(config,callback)
         {
             return new Promise( function(res,rej)
             {
-                var sql = "SELECT ita.name AS account_name ,it.value AS value, itgp.name AS group_plan, itd.name AS division, [month] AS month, itap.name AS parent_account "+
+                var sql = "SELECT ita.name AS account_name ,it.value AS value, itgp.name AS group_plan, itd.name AS division, [month] AS month, itap.name AS parent_account, itapp.name AS grand_parent_account "+
                           "FROM "+
                           "( "+
                           "SELECT MAX(id) AS id FROM input_table_input GROUP BY _plan_id, _accounts_id, [month] "+
@@ -920,17 +907,18 @@ exports.get = function(config,callback)
                           "JOIN input_table AS it_ ON it_.id = it._plan_id "+
                           "JOIN input_table_group_plans AS itgp ON itgp.ID = it_._group_plan_id "+
                           "JOIN input_table_division AS itd ON itd.id = it_._division_id "+
-                          "JOIN input_table_accounts AS itap ON itap.id = ita.parent_id ";   
+                          "JOIN input_table_accounts AS itap ON itap.id = ita.parent_id "+ 
+                          "JOIN input_table_accounts AS itapp ON itapp.id = itap.parent_id ";   
 
                 new mssql.Request()
                     .query(sql,function(err,r)
                     {
-                        res( {"body":r.recordset, "header":['account_name','value','group_plan','division','month','parent_account']} )
+                        res( {"body":r.recordset, "header":['account_name','value','group_plan','division','month','parent_account','grand_parent_account']} )
                     }) 
             })
         }
     
-        callback(db)
+        callback(db,mssql)
 	})
     
 
