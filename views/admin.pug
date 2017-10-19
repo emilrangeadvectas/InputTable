@@ -1,0 +1,37 @@
+html
+  head
+    title MB-input
+  body
+    link(rel="stylesheet",type="text/css",href="/style.css")
+    include include/head.pug
+    h2 User group plans
+    h3 Create new group plan
+    form(method='post',action='/admin/create_group_plan' class="standard_form")
+      input(type='text',name='name')
+      input(type='submit',value='create')
+    h3 User group plan status/handler
+
+    table(class="standard")
+        tr
+            each val in user_group_plan.header
+                if val == "name"
+                    th Group plan
+                else
+                    th=val
+        each val in user_group_plan.body
+            tr
+                each h in user_group_plan.header
+                    td(class=val[h]['style'])
+                        if val[h]['link']
+                            a(href='/plans/'+val[h]['link'])=val[h]['text']
+                        else
+                            =val[h]['text']
+    table(class="standard")
+        tr
+            each val in division_user.header
+                th=val
+        each val in division_user.body
+            tr
+                each val2 in val
+                    td=val2
+                            

@@ -27,7 +27,7 @@ require('./src/db.js').get(config, function(db)
 {
   var app = express();
 
-  app.set('views', __dirname);
+  app.set('views', __dirname+'/views');
   app.set('view engine', 'pug');
 
   app.use(session({ secret: 'fhjketipq3', cookie: {  }}))
@@ -58,32 +58,21 @@ require('./src/db.js').get(config, function(db)
   })
 
 
-  app.get('/'+main_password, function(req, res)
-  {
-    res.redirect("/")        
-  })
-  
-  app.get('/style.css', function(req, res)
-  {
-    fs.readFile('files/style.css', 'utf8', function (err,data)
+    app.get('/'+main_password, function(req, res)
     {
-      res.writeHeader(200,{"Content-Type":"text/css"})
-      res.write(data)
-      res.end()
-    });
-  })
-
-  app.get('/style2.css', function(req, res)
-  {
-    fs.readFile('files/style2.css', 'utf8', function (err,data)
-    {
-      res.writeHeader(200,{"Content-Type":"text/css"})
-      res.write(data)
-      res.end()
-    });
-  })
+        res.redirect("/")        
+    })
   
-
+    app.get('/style.css', function(req, res)
+    {
+        fs.readFile('files/style.css', 'utf8', function (err,data)
+        {
+          res.writeHeader(200,{"Content-Type":"text/css","Cache-Control":"max-age=86400"})
+          res.write(data)
+          res.end()
+        });
+    })
+  
     // ---- IFRAME
     app.get('/iframe',function(req, res)
     {
@@ -121,7 +110,7 @@ require('./src/db.js').get(config, function(db)
         }
         else
         {
-            if(req.cookies['last_url_call'] && req.cookies['last_url_call']!="/") res.redirect(req.cookies['last_url_call'])
+            if(req.cookies['redirect_here_on_index'] && req.cookies['redirect_here_on_index']!="/") res.redirect(req.cookies['redirect_here_on_index'])
             else res.redirect("/plans")
         }
     });
@@ -131,28 +120,35 @@ require('./src/db.js').get(config, function(db)
     app.get('/auth/:x_qlik_session?', function(req, res)
     {
         var x_qlik_session = req.params.x_qlik_session ? req.params.x_qlik_session : req.cookies['X-Qlik-Session'];
-        
-        qps_auth.auth(x_qlik_session,db).then(function(user_id)
+
+        if(x_qlik_session)
         {
-            if(user_id!==false)
+            qps_auth.auth(x_qlik_session,db).then(function(user_id)
             {
-                console.log('as user id = '+user_id)
-                req.session.user_id = user_id
-                res.redirect("/")               
-            }
-            else
+                if(user_id!==false)
+                {
+                    console.log('as user id = '+user_id)
+                    req.session.user_id = user_id
+                    res.redirect("/")               
+                }
+                else
+                {
+                    console.log("could not auth")
+                    console.log("redirects to login page")
+                    res.redirect("/login")
+                }
+            
+            }).catch(function(a)
             {
-                console.log("could not auth")
-                console.log("redirects to login page")
-                res.redirect("/login")
-            }
-        
-        }).catch(function(a)
+                console.log("error in auth. redirect to login")
+                res.redirect("/login")            
+            })
+        }
+        else
         {
-            console.log(a)
-            console.log("error in auth. redirect to login")
-            res.redirect("/login")            
-        })
+            console.log("no x-qlik-session found. redirect to login")
+            res.redirect("/login")                        
+        }
     });
     // ----
 
@@ -172,15 +168,22 @@ require('./src/db.js').get(config, function(db)
         n = req.body['login_name'];
         if(n)
         {
-            db.get_user(n,function(a)
+            db.get_user_by_name(n).then(function(user)
             {
-                req.session.user_id = a[0].id
-                res.redirect("/")
+                if(user)
+                {
+                    req.session.user_id = user
+                    res.redirect("/plans")
+                }
+                else
+                {
+                    res.redirect("/")                    
+                }
             })
         }
         else
         {
-            res.redirect("/login")        
+            res.redirect("/")
         }
     })
     // ----
@@ -196,63 +199,79 @@ require('./src/db.js').get(config, function(db)
     // ---- ADMIN
     app.get('/admin',function(req, resp)
     {
-        var t = undefined
-        db.get_pivot_user_group_plan().then(function(o)
+        if(!req.session.user_id)
         {
-            t = o
-            return db.get_division_user_state();
-            
-        }).then(function(du)
+            console.log("try to access page that requires login. redirect to /")
+            res.redirect('/')
+        }
+        else
         {
-            body = t.recordset
-            if(body.length===0)
+            var t = undefined
+            db.get_pivot_user_group_plan().then(function(o)
             {
-                t = {"header":[],"body":[]}
+                t = o
+                return db.get_division_user_state();
                 
-            }
-            else
+            }).then(function(du)
             {
-                body = body.map(function(x)
+                body = t.recordset
+                if(body.length===0)
                 {
-                    for(k in x)
+                    t = {"header":[],"body":[]}
+                    
+                }
+                else
+                {
+                    body = body.map(function(x)
                     {
-                        if(k=='group_plan')
-                            x[k] = {"text":x[k]}                            
-                        else
+                        for(k in x)
                         {
-                            if(x[k]==="|")
-                            {
-                                x[k] = {"text":   'not created'}                                
-                            }
+                            if(k=='group_plan')
+                                x[k] = {"text":x[k]}                            
                             else
                             {
-                                o = x[k].split("|")
-                                y = parseInt(o[0])
-                                x[k] = {"text":   y===0 ? 'work' : y===1 ? 'review' : y===2 ? 'sign' : '?'    ,"style":y===0 ? 'work' : y===1 ? 'review' : y===2 ? 'sign' : ''}
-                                x[k].link = o[1]
+                                if(x[k]==="|")
+                                {
+                                    x[k] = {"text":   'not created'}                                
+                                }
+                                else
+                                {
+                                    o = x[k].split("|")
+                                    y = parseInt(o[0])
+                                    x[k] = {"text":   y===0 ? 'work' : y===1 ? 'review' : y===2 ? 'sign' : '?'    ,"style":y===0 ? 'work' : y===1 ? 'review' : y===2 ? 'sign' : ''}
+                                    x[k].link = o[1]
+                                }
                             }
                         }
-                    }
-                    return x
-                })
-                t = {"header":Object.keys(t.recordset[0]),"body":body}
-            }
-            resp.render('admin',{division_user:du, user_group_plan:t,header:{title:"Admin","user":req.cookies['login_user_id']}});        
-        })
-        .catch(function()
-        {
-            resp.status(500)
-            resp.end()
-        })
+                        return x
+                    })
+                    t = {"header":Object.keys(t.recordset[0]),"body":body}
+                }
+                resp.render('admin',{division_user:du, user_group_plan:t,header:{title:"Admin","user":req.cookies['login_user_id']}});        
+            })
+            .catch(function()
+            {
+                resp.status(500)
+                resp.end()
+            })
+        }
     })
 
 
     app.post('/admin/create_group_plan', function(req, res)
     {
-        db.add_group_plan(req.body['name'],function()
+        if(!req.session.user_id)
         {
-            res.redirect("/admin")        
-        })
+            console.log("try to access page that requires login. redirect to /")
+            res.redirect('/')
+        }
+        else
+        {
+            db.add_group_plan(req.body['name'],function()
+            {
+                res.redirect("/admin")        
+            })
+        }
     })
 
     // ----
@@ -260,97 +279,153 @@ require('./src/db.js').get(config, function(db)
     // ---- PLAN:
     app.get('/plans', function(req, res)
     {
-        db.is_admin2( req.session.user_id ).then(function(is_admin)
+        if(!req.session.user_id)
         {
-			db.get_division_group_plan_for_user(req.session.user_id).then(function(d)
-			{
-                d.body = d.body.map(function(x)
+            console.log("try to access page that requires login. redirect to /")
+            res.redirect('/')
+        }
+        else
+        {
+            db.is_admin( req.session.user_id ).then(function(is_admin)
+            {
+                db.get_division_group_plan_for_user(req.session.user_id).then(function(d)
                 {
-                    for(var f in x)
+                    d.body = d.body.map(function(x)
                     {
-                        if(f!="gp_name")
+                        for(var f in x)
                         {
-                            var d = x[f].split("|")
-                            if(d[0]=='x')
-                                x[f] = {"type":"exists","id":d[1],"status": d[2]==0 ? 'work' : d[2]==1 ? 'review' : d[2]==2 ? 'sign' : d[2]===null ? 'not created' : '?'  }
-                            else
-                                x[f] = {"type":"create","group_plan_id":d[1],"division_id":d[2]}
+                            if(f!="gp_name")
+                            {
+                                var d = x[f].split("|")
+                                if(d[0]=='x')
+                                    x[f] = {"type":"exists","id":d[1],"status": d[2]==0 ? 'work' : d[2]==1 ? 'review' : d[2]==2 ? 'sign' : d[2]===null ? 'not created' : '?'  }
+                                else
+                                    x[f] = {"type":"create","group_plan_id":d[1],"division_id":d[2]}
+                            }
                         }
-                    }
-                    return x
+                        return x
+                    })
+                    
+                    res.render('plans', { plans:d,"header":{"title":"Plans","user":req.session.user_id,"is_admin":is_admin,"hide_plan_view_link":true,}})                
                 })
-                
-                res.render('plans', { plans:d,"header":{"title":"Plans","user":req.session.user_id,"is_admin":is_admin,"hide_plan_view_link":true,}})                
-			})
-			.catch(function()
-			{
-                res.render('plans', { plans:{header:[],body:[]},"header":{"title":"Plans","user":req.session.user_id,"is_admin":is_admin,"hide_plan_view_link":true,}})                
-			})   
-        })
+                .catch(function()
+                {
+                    res.render('plans', { plans:{header:[],body:[]},"header":{"title":"Plans","user":req.session.user_id,"is_admin":is_admin,"hide_plan_view_link":true,}})                
+                })   
+            })
+        }
     })
 
     app.post('/plans',function(req,res)
     {
-        db.create_plan(req.body['division_id'],req.body['group_plan_id'],function()
+        if(!req.session.user_id)
         {
-            res.redirect('/plans')                         
-        })
+            console.log("try to access page that requires login. redirect to /")
+            res.redirect('/')
+        }
+        else
+        {
+            db.create_plan(req.body['division_id'],req.body['group_plan_id'],function()
+            {
+                res.redirect('/plans')                         
+            })
+        }
     })
     
     app.get('/plans/:plan_id',function(req,res)
     {
-        res.cookie('last_url_call',req.url) 
-        db.is_admin2(req.session.user_id).then(function(is_admin)
+        if(!req.session.user_id)
         {
-            db.get_new_plan(req.params.plan_id,function(x)
+            console.log("try to access page that requires login. redirect to /")
+            res.redirect('/')
+        }
+        else
+        {
+            res.cookie('redirect_here_on_index',req.url) 
+            db.is_admin(req.session.user_id).then(function(is_admin)
             {
-                res.render('new_plan',{"disable_form": x.status === 0 || (x.status === 1 && is_admin) ? false : ""  ,data:x.body,plan_id:req.params.plan_id, "header":{"user":req.cookies['login_user_id'],"is_admin":is_admin,  "plan":{"state":x.status},"title":"Plan: "+x.group_plan_name+", "+x.division_name,"plan_id":req.params.plan_id,"is_locked":x.status===1}   });                              
-            })            
-        })
+                db.get_new_plan(req.params.plan_id,function(x)
+                {
+                    res.render('plan',{"disable_form": x.status === 0 || (x.status === 1 && is_admin) ? false : ""  ,data:x.body,plan_id:req.params.plan_id, "header":{"user":req.cookies['login_user_id'],"is_admin":is_admin,  "plan":{"state":x.status},"title":"Plan: "+x.group_plan_name+", "+x.division_name,"plan_id":req.params.plan_id,"is_locked":x.status===1}   });                              
+                })            
+            })
+        }
     })
 
     app.put('/plans/:plan_id/work',function(req,res)
     {
-      db.set_plan_state("0",req.params.plan_id,function()
-      {
-        res.redirect("/plans/"+req.params.plan_id)  
-      })
+        if(!req.session.user_id)
+        {
+            console.log("try to access page that requires login. redirect to /")
+            res.redirect('/')
+        }
+        else
+        {
+            db.set_plan_state("0",req.params.plan_id,function()
+            {
+                res.redirect("/plans/"+req.params.plan_id)  
+            })
+        }
     })
     
     
     app.put('/plans/:plan_id/review',function(req,res)
     {
-      db.set_plan_state("1",req.params.plan_id,function()
-      {
-        res.redirect("/plans/"+req.params.plan_id)  
-      })
+        if(!req.session.user_id)
+        {
+            console.log("try to access page that requires login. redirect to /")
+            res.redirect('/')
+        }
+        else
+        {
+            db.set_plan_state("1",req.params.plan_id,function()
+            {
+                res.redirect("/plans/"+req.params.plan_id)  
+            })
+        }
     })
 
     app.put('/plans/:plan_id/sign',function(req,res)
     {
-      db.set_plan_state("2",req.params.plan_id,function()
-      {
-        res.redirect("/plans/"+req.params.plan_id)  
-      })
+        if(!req.session.user_id)
+        {
+            console.log("try to access page that requires login. redirect to /")
+            res.redirect('/')
+        }
+        else
+        {
+            db.set_plan_state("2",req.params.plan_id,function()
+            {
+                res.redirect("/plans/"+req.params.plan_id)  
+            })
+        }
     })
     
     app.put('/plans/:plan_id',function(req,res)
     {
-        var update_data = {}
-        for(key in req.body)
+        if(!req.session.user_id)
         {
-          if(key[0]!="_")
-          {
-            if(req.body[key]!=req.body["_"+key])
+            console.log("try to access page that requires login. redirect to /")
+            res.redirect('/')
+        }
+        else
+        {
+            var update_data = {}
+            for(key in req.body)
             {
-              update_data[key] = req.body[key]
-            }
-          }
-        }        
-        db.update_new_plan(req.params.plan_id,update_data,function()
-        {
-            res.redirect('/plans/'+req.params.plan_id)             
-        })
+              if(key[0]!="_")
+              {
+                if(req.body[key]!=req.body["_"+key])
+                {
+                  update_data[key] = req.body[key]
+                }
+              }
+            }        
+            db.update_new_plan(req.params.plan_id,update_data,function()
+            {
+                res.redirect('/plans/'+req.params.plan_id)             
+            })
+        }
     })
     // ----
     

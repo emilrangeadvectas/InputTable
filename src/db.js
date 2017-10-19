@@ -35,46 +35,8 @@ JOIN input_table_division AS itd ON itd.id = it_._division_id
 
 // fel. skapa plan. gå in ändra värde. skapa ny plan. krashar
 
-get_next_table_name = function()
-{
-    var text = "";
-    var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    for (var i = 0; i < 5; i++)
-        text += possible.charAt(Math.floor(Math.random() * possible.length));
-
-    return ["input_table_"+text,text];
-}
 
 
-function get_total(gp_id,field,callback)
-{
-//    callback(123)
-  //  return;
-    var total = 0
-    fields = []
-    var sql = "SELECT [table] FROM input_table WHERE group_plan_id = @group_plan_id";
-    new mssql.Request()
-      .input('group_plan_id',mssql.BigInt,gp_id)
-      .query(sql,function(err,r)
-      {
-          async.each(r.recordset.map(function(o){ return o.table }),function(ii2,uu2)
-          {
-              var sql = "SELECT SUM([value]) AS s FROM input_table_"+ii2+" WHERE field = @field"
-              new mssql.Request()
-                .input('field',mssql.VarChar(255),field)
-                .query(sql,function(err,r){
-                    
-                    
-                    total += r.recordset[0].s
-                    uu2();        
-                })
-
-          },function()
-          {
-              callback(total)
-          })
-      })
-}
 
 function is_valid(x)
 {
@@ -101,32 +63,6 @@ function do_output(x)
 	return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
-
-
-
-
-function get_if_form(x,y,rs)
-{
-  return false;
-  var r = false;
-  rs.forEach(function(l)
-  {
-    if(l[table_key]===y)
-    {
-      for(var j in l){
-        if(j===x)
-        {
-          if(l[j]===1)
-          {
-            r = x+";"+y
-          }
-        }
-      }
-    }
-  })
-  return r;
-}
-
 function get_user_plan(mssql,user,plan_id,callback)
 {
     //var sql = "SELECT [table], status FROM input_table WHERE [user] = @user";
@@ -142,287 +78,13 @@ function get_user_plan(mssql,user,plan_id,callback)
       })    
 }
 
-function get_user_plans(mssql,user,callback)
-{
-    //var sql = "SELECT [table], status FROM input_table WHERE [user] = @user";
-    var sql = "SELECT [table], status, name FROM input_table JOIN input_table_group_plans ON input_table.group_plan_id = input_table_group_plans.id  WHERE [user] = @user"
-    new mssql.Request()
-	  .input('user',mssql.VarChar(255),user)
-      .query(sql,function(err,recordsets)
-      {
-        var t = recordsets.recordsets[0][0].table;
-        var s = recordsets.recordsets[0][0].status;
-        var n = recordsets.recordsets[0][0].name;
-        
-        var b = {}
-        b.table = t;
-        b.status = s;
-        b.name = n;
-        
-        callback([ b ]);
-      })    
-}
 
-function build_matrix(callback,mssql,error,user,_plan_id)
-{
-    get_user_plan(mssql,user,_plan_id,function(plan_id,status)
-    {
-      var table_name = "input_table_"+plan_id;
-
-      var get_fields_sql = "SELECT "+field+" FROM "+table_name+" GROUP BY "+field
-
-      var innersql = "SELECT _key, field, (SELECT TOP(1) value FROM "+table_name+" WHERE _key = d1._key AND field = d1.field ORDER BY created DESC) AS value FROM "+table_name+" AS d1 GROUP BY _key, field";
-
-      
-      if(error===undefined) error = {}
-      new mssql.Request().query(get_fields_sql, function(err, recordsets, returnValue)
-      {
-        fields = []
-
-        for(u in recordsets.recordsets[0])
-        {
-          fields.push( recordsets.recordsets[0][u][field] );
-        }
-        var pivot_styled_field_list = "["+fields.join("],[")+"]"
-
-          var sql = "SELECT * FROM ("+innersql+") as g "+
-          "PIVOT ( max("+value+") for field in ("+pivot_styled_field_list+") ) AS d";
-
-          var sql3 = "SELECT * FROM (SELECT "+table_key+", "+field+", "+editable+" FROM "+table_name+") as g "+
-          "PIVOT ( max("+editable+") for field in ("+pivot_styled_field_list+") ) AS d";
-
-          var data = []
-          new mssql.Request().query(sql, function(err, recordsets, returnValue)
-          {
-            new mssql.Request().query(sql3, function(err, recordsets3, returnValue3)
-            {
-              recordsets.recordsets[0].forEach(function(x)
-              {
-                var the_key = x[table_key]
-                row = [{value:the_key}]
-                rrr = ['_key','01','02','03','04','05','06','07','08','09','10','11','12'];
-                rrr.forEach(function(_key)
-                {
-                  if(_key===table_key) return;
-//                  var cell = {value:do_output(x[_key]),form:get_if_form(_key, the_key,recordsets3.recordsets[0])};
-                  var cell = {value:do_output(x[_key]),form: status==0 ? _key+";"+the_key : false  };
-                  if( error[_key+";"+the_key]!==undefined )
-                  {
-                    cell.error = true
-                    cell.value = error[_key+";"+the_key]
-                  }
-
-                  row.push(cell)
-                });
-                var real_row = {}
-                fields.forEach(function(a,b)
-                {
-                    return;
-                    row.forEach(function(x)
-                    {
-                        if(x['form']===undefined) return;
-                        if(x['form']===false) return;
-
-
-                        
-                        if(x['form'].substring(0,2)==a){
-
-                        real_row[x['form']] = x;
-                        }
-                    })
-                })
-                data.push(row)
-//                data.push(real_row)
-              })
-              var matrix = {}
-              matrix.headers = [''].concat(fields)
-              matrix.body = data
-              callback(matrix);
-            });
-          });
-        });
-
-
-
-    
-    })
-}
-
-function get_all_fields_of_group_plan(id,callback)
-{
-    fields = []
-    var sql = "SELECT [table] FROM input_table WHERE group_plan_id = @group_plan_id";
-    new mssql.Request()
-      .input('group_plan_id',mssql.BigInt,id)
-      .query(sql,function(err,r)
-      {
-          async.each(r.recordset,function(i,u)
-          {
-              var sql = "SELECT field FROM input_table_"+i.table;
-              new mssql.Request()
-                .query(sql,function(err,r)
-                {
-                    fields = fields.concat(r.recordset.map(function(o){ return o.field}))
-                    u();
-                })
-          },function()
-          {
-              callback(fields.filter(function(v,i,s){return s.indexOf(v)===i}));
-          })
-      })
-}
-
-function update_data(mssql,callback_when_all_update_done,data,user,group_plan_id)
-{
-    if(!user) throw "invalid user"
-
-    get_user_plan(mssql,user,group_plan_id,function(plan_id)
-    {
-        var table_name = "input_table_"+plan_id;
-              
-        error_fields = {}
-        to_update_list = []
-        for(key in data)
-        {
-            if( !is_valid(data[key]) )
-            {
-              error_fields[ key ] = data[key]
-            }
-            else
-            {
-              to_update_list.push([key,do_process(data[key])])
-            }
-        }
-
-        update = function(avp,callback_when_done)
-        {
-            var keys = avp[0].split(";")
-            var sql = "INSERT INTO "+table_name+" (value,field,_key,created) VALUES(@value,@field,@key,GETDATE())";
-            new mssql.Request()
-              .input('value',mssql.Int,avp[1])
-              .input('field',mssql.VarChar(32),keys[0])
-              .input('key',mssql.VarChar(32),keys[1])
-              .query(sql,function(err)
-              {
-                  callback_when_done();
-              })
-        }
-        done = function()
-        {
-            callback_when_all_update_done(error_fields);
-        }
-        async.each(to_update_list,update,done)
-    })
-    
-}
 
 exports.get = function(config,callback)
 {
     mssql.connect(config, function (err)
     {
         var db = {}
-
-        db.get_matrix = function(callback,user,group_plan_id)
-        {
-            build_matrix(callback,mssql,undefined,user,group_plan_id); 
-        }
-
-        db.update_and_get_matrix = function(callback,data,user,group_plan_id)
-        {
-            update_data(mssql,function(error)
-            {
-                build_matrix(callback,mssql,error,user,group_plan_id);
-            },data,user,group_plan_id)
-        }
-
-        db.get_raw_newest_data3 = function(c)
-        {
-            var sql = "SELECT [user],[name],[table] FROM input_table AS it "+
-            "JOIN input_table_group_plans AS gp ON it.group_plan_id = gp.ID";
-
-            new mssql.Request()
-              .query(sql,function(err,r)
-              {
-                d = r.recordset;
-                
-                var g = function(x,c)
-                {
-                    var table_name = "input_table_"+x.table;
-
-                                            body = []
-
-                    sql = "SELECT _key, field, (SELECT TOP(1) value FROM "+table_name+" WHERE _key = d1._key AND field = d1.field ORDER BY created DESC) AS value FROM "+table_name+" AS d1 GROUP BY _key, field";
-                    new mssql.Request()
-                      .query(sql,function(err,recordsets)
-                      {
-                        recordsets.recordsets[0].forEach(function(i)
-                        {
-                            if(i['value']!==null)
-                                body.push([x['user'],x['name'],i['_key'],i['field'],i['value']])
-                        })
-                        c();
-                      }) 
-
-                      
-                }
-
-                async.each(d,g,function(){c(body)});
-                
-
-              })
-            
-
-        }
-        
-        db.add_key = function(key,on_field,done)
-        {
-            var sql = "INSERT INTO "+table_name+" ("+field+","+table_key+","+editable+") VALUES ('"+on_field+"','"+key+"',1)";
-            new mssql.Request()
-              .query(sql,function(err)
-              {
-                done();
-              })
-        }
-
-        db.get_report = function(callback)
-        {
-            ll = []
-            var sql = "SELECT * FROM input_table_group_plans"
-            new mssql.Request()
-              .query(sql,function(err,r)
-              {
-                  async.each(r.recordset,function(i,u)
-                  {
-                      get_all_fields_of_group_plan(i.ID,function(ui)
-                      {
-                          async.each(ui,function(uu2,iei2)
-                          {
-
-                                  get_total(i.ID,uu2,function(t)
-                                  {
-                                      ll.push([i.name,uu2,t])
-                                      iei2();
-                                  })
-                                  
-                              /*
-                              ui.forEach(function(g)
-                              {
-
-                              })*/
-                              
-                              
-                          },function()
-                          {
-                              u();
-                          })
-                      })
-                  },function()
-                  {
-                      callback(ll)
-                  })
-              })
-
-        }
 
         db.get_plan_state = function(user,plan_id,callback)
         {
@@ -438,7 +100,6 @@ exports.get = function(config,callback)
         
         db.set_plan_state = function(state,plan_id,callback)
         {
-            console.log(state+","+plan_id)
             var sql = "UPDATE input_table SET status = @state WHERE id = @plan_id";
             new mssql.Request()
               .input('state',mssql.BigInt,state)
@@ -493,96 +154,7 @@ exports.get = function(config,callback)
               })
         }
         
-        db.get_all_users = function(callback)
-        {
-            var users = []
-            var sql = "SELECT [user] FROM input_table";
-            new mssql.Request()
-              .query(sql,function(err,recordsets)
-              {
-                  recordsets.recordsets[0].forEach(function(i,u)
-                  {
-                      users.push(i.user);
-                  })
-                  callback(users);
-              });
-        }
-        
-        db.get_raw_newest_data = function(callback,user)
-        {
-            get_user_plan(mssql,user,function(plan_id,status,group_plan_name)
-            {
-                var table_name = "input_table_"+plan_id;
-
-                sql = "SELECT _key, field, (SELECT TOP(1) value FROM "+table_name+" WHERE _key = d1._key AND field = d1.field ORDER BY created DESC) AS value FROM "+table_name+" AS d1 GROUP BY _key, field";
-                new mssql.Request()
-                  .query(sql,function(err,recordsets)
-                  {
-                    body = []
-                    recordsets.recordsets[0].forEach(function(x)
-                    {
-                        body.push([user,x[table_key],x[field],x[value],group_plan_name])
-                    })
-                    callback(body);
-                  })                
-            })
-        }
-
-        db.get_plans_of_users = function(user,callback)
-        {
-            sql = "SELECT CASE WHEN [status] is null THEN 0 ELSE 1 END as have_plan, [name],[status],[user],ID AS group_plan_id "+
-                  "FROM input_table_group_plans AS gp "+
-                  "LEFT JOIN input_table AS it ON it.group_plan_id=gp.ID AND [user] = @user ";
-                  
-                 new mssql.Request()
-                  .input('user',mssql.VarChar(255),user)
-                  .query(sql,function(err,recordsets)
-                  {
-                    callback(recordsets.recordset)
-                  })
-        }
-        
-        db.get_raw_newest_data2 = function(callback,user)
-        {
-            get_user_plans(mssql,user,function(d)
-            {
-                body = []
-                var x = function(o,callback)
-                {
-                    plan_id = o.table;
-                    status = o.status;
-                    group_plan_name = o.name;
-                    var table_name = "input_table_"+plan_id;
-
-                    sql = "SELECT _key, field, (SELECT TOP(1) value FROM "+table_name+" WHERE _key = d1._key AND field = d1.field ORDER BY created DESC) AS value FROM "+table_name+" AS d1 GROUP BY _key, field";
-                    new mssql.Request()
-                      .query(sql,function(err,recordsets)
-                      {
-                        recordsets.recordsets[0].forEach(function(x)
-                        {
-                            body.push([user,x[table_key],x[field],x[value],group_plan_name])
-                        })
-                        callback();
-                      })                
-                    
-                }
-                
-                async.each(d,x,function(){callback(body)})
-                
-            })
-        }
-        
-        db.lock_field = function(f,callback_when_done)
-        {
-            sql = "UPDATE "+table_name+" SET editable = 0 WHERE "+field+"='"+f+"'" ;
-            new mssql.Request()
-              .query(sql,function(err)
-              {
-                  callback_when_done();
-              })
-        }
-        
-        db.is_admin2 = function(user_id)
+        db.is_admin = function(user_id)
         {
             return new Promise(function(res,rej)
 			{
@@ -591,7 +163,6 @@ exports.get = function(config,callback)
                     .input('user_id',mssql.BigInt,user_id)
                     .query(sql,function(err,r)
                     {
-                        console.log(user_id)
                         res(r.recordset[0]['is_admin']===1)
                     })            
             });
@@ -651,47 +222,7 @@ exports.get = function(config,callback)
                 })
 			})                       
         }
-        
-        db.add_field = function(f,done)
-        {
-            update = function(k,callback_when_done)
-            {
-                var sql = "INSERT INTO "+table_name+" ("+field+","+table_key+","+editable+") VALUES ('"+f+"','"+k+"',1)";
-                new mssql.Request()
-                .query(sql,function(err)
-                {
-                    callback_when_done();
-                })
-            }
-
-            keys = []
-            new mssql.Request()
-                .query("SELECT _key FROM "+table_name+" GROUP BY _key",function(err,recordsets)
-                {
-                    recordsets.recordsets[0].forEach(function(d)
-                    {
-                        for(var k in d)
-                        {
-                            keys.push(d[k])
-                        }
-                    })
-                    async.each(keys,update,done)
-                })
-
-        }
-
-        db.user_has_plan = function(user,callback)
-        {
-            var sql = "SELECT group_plan_id FROM input_table WHERE [user] = @user";
-            new mssql.Request()
-              .input('user',mssql.VarChar(255),user)
-              .input('table',mssql.VarChar(255),user)
-              .query(sql,function(err,recordsets)
-              {
-                  callback(recordsets.recordset.length>0, recordsets.recordset.length>0 ? recordsets.recordset[0]['group_plan_id'] : null )
-              })            
-        }
-        
+                
         db.close = function()
         {
             mssql.close()
@@ -731,18 +262,22 @@ exports.get = function(config,callback)
         // -----
 
         
-        db.get_user = function(user_name,c)
+        db.get_user_by_name = function(user_name)
         {
-            var sql = "SELECT [id] FROM input_table_users WHERE name = @name"
+            return new Promise(function(res,rej)
+            {
+                var sql = "SELECT [id] FROM input_table_users WHERE name = @name"
 
-            new mssql.Request()
-                .input('name',mssql.VarChar(255),user_name)
-                .query(sql,function(err,r)
-                {
-                    console.log(err)
-                    c(r.recordset)
-                });
-            
+                new mssql.Request()
+                    .input('name',mssql.VarChar(255),user_name)
+                    .query(sql,function(err,r)
+                    {
+                        if(err) rej(err)
+                        else if(!r.recordset || r.recordset.length==0) res(false)  
+                        else res(r.recordset[0].id)
+                    });
+                
+            })            
         }
 
         db.get_new_plan = function(plan_id,callback)
@@ -796,7 +331,6 @@ exports.get = function(config,callback)
                 .query(sql,function(err,r)
                 {            
                     console.log(err)
-                    console.log(r.recordset)
                     callback( {"body":r.recordset, "header":Object.keys(r.recordset[0]),"status":r.recordsets[1][0]['status'],"group_plan_name":r.recordsets[1][0]['group_plan_name'],"division_name":r.recordsets[1][0]['division_name'] })
                 })          
                 

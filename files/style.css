@@ -22,3 +22,40 @@ table.standard td.sign {background: #22ee22}
 table.standard tr:nth-child(even) td.review { background: #ddff33 }
 table.standard tr:nth-child(even) td.sign { background: #22ff22 }
 
+table.plan { border-collapse: collapse; border-spacing:0; width:100%; }
+
+table.plan input[type="text"] { text-align:center; background: #fff; border: 1px solid #888; border-radius: 3px; }
+table.plan input[disabled=""] { background: #f3f3f3; color: #888; }
+
+header.review { background: #ddee33; border-bottom: 1px solid #ccbb11; }
+header.sign { background: #22ee22; border-bottom: 1px solid #ccbb11; }
+header input[type=submit]{ background: #eee; padding: 7px; float:right; height: 30px; margin-top:5px; margin-right: 10px; }
+header input[type=submit].review { background: #ddee33; }
+header input[type=submit].sign { background: #22ee22; }
+
+table.plan { font-family: Arial, Helvetica, sans-serif; font-size: 14px; color:#575757; }
+
+table tr.level0 th{font-size: 20px; border-bottom: 2px solid #000; padding:5px}
+table tr.level0 td{font-size: 20px; border-bottom: 2px solid #000; padding:5px}
+
+table tr.level2 th{font-size: 16px; margin-top:10px; border-left: 2px solid #ccc5ce; border-top: 2px solid #ccc5ce; border-bottom: 1px solid #ccc5ce; text-align:left; color: #111; padding:5px}
+table tr.level2 td{font-size: 16px; margin-top:10px; border-top: 2px solid #ccc5ce; border-bottom: 1px solid #ccc5ce; text-align:left; color: #111; padding:5px; font-weight:bold; text-align:center}
+
+table tr.level4 th{font-size: 14px; border-left: 2px solid #ccc5ce; font-weight:normal; text-align:left; padding: 8px; border-bottom: 2px solid #ddd; background: #f5f5f5}
+table tr.level4 td{font-size: 14px; font-weight:bold; text-align:left; padding: 8px; text-align:center; border-bottom: 2px solid #ddd; background: #f5f5f5}
+
+table tr.level6 th{font-size: 13px; border-left: 2px solid #ccc5ce; background: #ddd; text-align:left; padding: 5px}
+table tr.level6 td{background: #ddd;}
+
+table tr.level0 td{font-size: 18px; color:#000; font-weight:bold; text-align:center}
+
+table.plan .header td{border-bottom: 2px solid #000}
+table.plan .header th{border-bottom: 2px solid #000; padding:5px; color:#000}
+
+table.plan .space td{height:10px; border-top: 3px solid #ccc5ce;}
+
+.header th{width:120px}
+
+table.plan .void { border:0 !important; background:none !important; }
+
+[data-parent]{display:none}
