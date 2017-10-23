@@ -138,9 +138,6 @@ exports.get = function(config,callback)
               
               //                var data = [ {"name":"budget 2019","users_plans":[]}, {"name":"budget 2018", "users_plans":[{name:"emil", status:"started"},{name:"karl",status:"started"},{name:"lisa",status:"done"}]} ,  {"name":"budget 2017","users_plans":[{name:"tim",status:"started"},{name:"lisa",status:"done"} ]]}
               })
-
-            
-        
         }
         
         db.add_group_plan = function(name,callback)
@@ -339,6 +336,28 @@ exports.get = function(config,callback)
         }
 
 
+        db.update_new_plan2 = function(plan_id,month,id,value,c)
+        {
+            console.log("----")
+            console.log(plan_id)
+            console.log(month)
+            console.log(id)
+            console.log(value)
+            
+            var sql = "INSERT INTO input_table_input ([value], [month], [_accounts_id], [_plan_id]) VALUES (@value,@month,@id,@plan_id);"
+            new mssql.Request()
+                .input('plan_id',mssql.BigInt,plan_id)
+                .input('id',mssql.BigInt,id)
+                .input('month',mssql.VarChar(3),month)
+                .input('value',mssql.Decimal(18,4),value)
+                .query(sql,function(err,r)
+                {      
+                    console.log(err)
+                    c();
+                })                    
+
+        }
+        
         db.update_new_plan = function(plan_id,d,callback)
         {
             var l = []

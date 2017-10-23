@@ -352,6 +352,30 @@ require('./src/db.js').get(config, function(db)
         }
     })
 
+    app.put('/plans2/:plan_id',function(req,res)
+    {
+        if(!req.session.user_id)
+        {
+            console.log("try to access page that requires login. redirect to /")
+            res.redirect('/')
+        }
+        else if( req.body['value']===""  )
+        {
+            res.write("bad request")
+            res.end()            
+        }
+        else
+        {
+            console.log(req.body)
+            db.update_new_plan2( req.body['plan_id'], req.body['month'], req.body['key'], req.body['value'], function()
+            {
+                res.write("updated")
+                res.end()
+            })
+        }
+    })
+    
+    
     app.put('/plans/:plan_id/work',function(req,res)
     {
         if(!req.session.user_id)
