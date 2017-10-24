@@ -37,7 +37,7 @@ function status_code_to_text(x)
     if( x==null ) return "not created"
 }
 
-require('./src/db.js').get(config, function(db)
+require('./src/db.js').get(config.db, function(db)
 {
   var app = express();
 
