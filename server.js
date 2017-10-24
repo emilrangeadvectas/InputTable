@@ -6,8 +6,22 @@ var http = require('http');
 var https = require('https');
 var async = require('async');
 var session = require('express-session')
-var qps_auth = require('./src/qps_auth.js')
+
 var config = JSON.parse(fs.readFileSync('config/config.json', 'utf8'));
+
+var qps_auth = undefined
+
+if(config.cert)
+{
+    console.log("Init QPS AUTH...")
+    qps_auth = require('./src/qps_auth.js').cert(fs.readFileSync(config.cert.key),fs.readFileSync(config.cert.cert));
+    console.log("...success")
+}
+else
+{
+    console.log("Warning: using mocked QPS AUTH")
+    qps_auth = require('./src/mock/qps_auth.js');
+}
 
 main_password = "jkl"
 var https_options = false
@@ -38,7 +52,10 @@ require('./src/db.js').get(config, function(db)
   app.use(bodyParser.json());
   app.use(cookieParser());
   app.use(require('express-method-override')('_method'));
+  app.use(cookieParser());
 
+  app.use(cookieParser());
+  
   app.use(function(req,res,next)
   {
       console.log("==========================================")
@@ -46,7 +63,7 @@ require('./src/db.js').get(config, function(db)
       console.log("user: "+req.session.user_id)
       console.log("- - - - - - - - - - - - - - - - - - - - - ")
       
-    if (true || req.session.know_password===true || req.url == '/'+main_password || req.url == '/rest5' || req.url == '/iframe')
+    if (true || req.session.know_password===true || req.url == '/'+main_password || req.url == '/rest5' || req.url == '/rest_user' || req.url == '/iframe')
     {
       req.session.know_password = true
       next()
@@ -72,7 +89,12 @@ require('./src/db.js').get(config, function(db)
           res.end()
         });
     })
-  
+
+    app.get('/style3.css', function(req, res)
+    {
+
+    })
+    
     // ---- IFRAME
     app.get('/iframe',function(req, res)
     {
@@ -85,7 +107,7 @@ require('./src/db.js').get(config, function(db)
     {
         db.get_rapport().then(function(x)
         {
-            csv = x.header.join(";")
+            var csv = x.header.join(";")
             x.body.forEach(function(i)
             {
                 csv += "\n"
@@ -98,7 +120,47 @@ require('./src/db.js').get(config, function(db)
             res.write(csv)
             res.end();
         })
+        .catch(function(db_err)
+        {
+            console.log("ERROR: db.get_rapport failed")
+            console.log(db_err.message)
+            res.writeHeader(500) 
+            res.end();
+        })
     })
+
+    app.get('/rest_user', function(req, res)
+    {
+        var f = function(i,l,ind)
+        {
+            if(ind==0) return i[l].split("|").reverse().join("/")
+            return new String(i[l])
+        }
+        
+        db.get_rapport_user().then(function(x)
+        {
+            var csv = x.header.join(";")
+            x.body.forEach(function(i)
+            {
+                csv += "\n"
+                x.header.forEach(function(l,ind)
+                {
+                    csv += (ind!==0 ? ";" : "")+(  f(i,l,ind)  ).trim()
+                })
+            })
+            res.writeHeader(200,{"Content-Type":"text/plain"})
+            res.write(csv)
+            res.end();
+        })
+        .catch(function(db_err)
+        {
+            console.log("ERROR: db.get_rapport_user failed")
+            console.log(db_err.message)
+            res.writeHeader(500) 
+            res.end();
+        })
+    })
+
     // ----
   
     // ---- /
@@ -155,11 +217,6 @@ require('./src/db.js').get(config, function(db)
     // ---- LOGIN
     app.get('/login', function(req, res)
     {
-        if(req.session.user_id)
-        {
-            res.redirect("/")
-            return;
-        }
         res.render('login', {});  
     })
 
@@ -344,10 +401,25 @@ require('./src/db.js').get(config, function(db)
             res.cookie('redirect_here_on_index',req.url) 
             db.is_admin(req.session.user_id).then(function(is_admin)
             {
+                db.get_new_plan(req.params.plan_id).then(function(x)
+                {
+                    res.render('plan',{"disable_form": x.status === 0 || (x.status === 1 && is_admin) ? false : ""  ,data:x.body,plan_id:req.params.plan_id, "header":{"user":req.cookies['login_user_id'],"is_admin":is_admin,  "plan":{"state":x.status},"title":"Plan: "+x.group_plan_name+", "+x.division_name,"plan_id":req.params.plan_id,"is_locked":x.status===1}   });
+                    
+                }).catch(function(db_err)
+                {
+                    console.log("ERROR: db.get_new_plan failed")
+                    console.log(db_err.message)
+                    res.writeHeader(500) 
+                    res.end();                    
+                })
+                /*
                 db.get_new_plan(req.params.plan_id,function(x)
                 {
-                    res.render('plan',{"disable_form": x.status === 0 || (x.status === 1 && is_admin) ? false : ""  ,data:x.body,plan_id:req.params.plan_id, "header":{"user":req.cookies['login_user_id'],"is_admin":is_admin,  "plan":{"state":x.status},"title":"Plan: "+x.group_plan_name+", "+x.division_name,"plan_id":req.params.plan_id,"is_locked":x.status===1}   });                              
-                })            
+                })
+                .catch(function(err)
+                {
+                    
+                })*/
             })
         }
     })

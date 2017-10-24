@@ -42,7 +42,7 @@ html
                                 =val['name']
                         else if val['level']==3
                             th(class="void")
-                            th(class="account")
+                            th(class="account" id="account_"+val['id'])
                                 div
                                     a(onclick='show_hide('+val['id']+',this)', data-is_open="0" href="#")='[+]'
                                     =' '+val['name']
@@ -126,5 +126,14 @@ html
                     {
                         tr[i].style.display = t.dataset['is_open']==="0" ? 'none' : 'table-row';
                     }
-                }                
+                }
+                
+                var v = $(t).parent().parent().attr('id')
+                
+                setTimeout(function()
+                {
+                    location.href = "#"
+                    location.href = "#"+v
+                },100)
             }
+                        
