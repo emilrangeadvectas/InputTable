@@ -37,6 +37,45 @@ function status_code_to_text(x)
     if( x==null ) return "not created"
 }
 
+function get_user_state_for_plan(db,user_id,plan_id)
+{
+    return new Promise(function(res,rej)
+    {
+        db.get_user_state_for_plan(user_id,plan_id).then(function(x)
+        {
+//            [ [ { is_admin: 1, status: 0 } ] ]
+                //remap this:
+                // 0 not access, no valid user, OR no valid plan
+                // 1 access, can write
+                // 2 access, but is locked
+            res(x);            
+        });
+    })
+}
+
+var fallback_page = function(req,res,next,status)
+{
+    res.clearCookie('start_page')     
+    res.status(status)
+    res.setHeader("Content-Type","text/html")
+    res.render('fallback',{"status":status});
+  
+}
+
+
+function is_valid_value(x)
+{
+  if(x==="") return false;
+  var reg = /^[0-9 ]+$/ //spaces are allowed since they are being trimmed
+  if(!reg.test(x)) return false;
+  
+  var v = x.split(' ').join('');
+  
+  if(v>1000000) return false;
+  if(v<0) return false;
+  return true;
+}
+
 require('./src/db.js').get(config.db, function(db)
 {
   var app = express();
@@ -53,13 +92,11 @@ require('./src/db.js').get(config.db, function(db)
   app.use(cookieParser());
   app.use(require('express-method-override')('_method'));
   app.use(cookieParser());
-
-  app.use(cookieParser());
   
   app.use(function(req,res,next)
   {
       console.log("==========================================")
-      console.log("url: "+req.url)
+      console.log(req.method+" "+req.url)
       console.log("user: "+req.session.user_id)
       console.log("- - - - - - - - - - - - - - - - - - - - - ")
       
@@ -84,6 +121,7 @@ require('./src/db.js').get(config.db, function(db)
     {
         fs.readFile('files/style.css', 'utf8', function (err,data)
         {
+            var expires = new Date(Date.now()+86400000).toUTCString()
           res.writeHeader(200,{"Content-Type":"text/css","Cache-Control":"max-age=86400"})
           res.write(data)
           res.end()
@@ -96,9 +134,10 @@ require('./src/db.js').get(config.db, function(db)
     })
     
     // ---- IFRAME
-    app.get('/iframe',function(req, res)
+    app.get('/iframe',function(req, res,next)
     {
-        res.render('iframe');        
+        page404(req,res,next)
+//        res.render('iframe');        
     })
     // ----
     
@@ -172,7 +211,7 @@ require('./src/db.js').get(config.db, function(db)
         }
         else
         {
-            if(req.cookies['redirect_here_on_index'] && req.cookies['redirect_here_on_index']!="/") res.redirect(req.cookies['redirect_here_on_index'])
+            if(req.cookies['start_page'] && req.cookies['start_page']!="/") res.redirect(req.cookies['start_page'])
             else res.redirect("/plans")
         }
     });
@@ -259,7 +298,7 @@ require('./src/db.js').get(config.db, function(db)
         if(!req.session.user_id)
         {
             console.log("try to access page that requires login. redirect to /")
-            res.redirect('/')
+            resp.redirect('/')
         }
         else
         {
@@ -306,10 +345,11 @@ require('./src/db.js').get(config.db, function(db)
                 }
                 resp.render('admin',{division_user:du, user_group_plan:t,header:{title:"Admin","user":req.cookies['login_user_id']}});        
             })
-            .catch(function()
+            .catch(function(err)
             {
-                resp.status(500)
-                resp.end()
+                console.log("ERROR:")
+                console.log(err.message)
+                fallback_page(req,resp,next,500)
             })
         }
     })
@@ -389,7 +429,7 @@ require('./src/db.js').get(config.db, function(db)
         }
     })
     
-    app.get('/plans/:plan_id',function(req,res)
+    app.get('/plans/:plan_id',function(req,res,next)
     {
         if(!req.session.user_id)
         {
@@ -398,19 +438,18 @@ require('./src/db.js').get(config.db, function(db)
         }
         else
         {
-            res.cookie('redirect_here_on_index',req.url) 
+            res.cookie('start_page',req.url) 
             db.is_admin(req.session.user_id).then(function(is_admin)
             {
-                db.get_new_plan(req.params.plan_id).then(function(x)
+                db.get_plan(req.params.plan_id).then(function(x)
                 {
                     res.render('plan',{"disable_form": x.status === 0 || (x.status === 1 && is_admin) ? false : ""  ,data:x.body,plan_id:req.params.plan_id, "header":{"user":req.cookies['login_user_id'],"is_admin":is_admin,  "plan":{"state":x.status},"title":"Plan: "+x.group_plan_name+", "+x.division_name,"plan_id":req.params.plan_id,"is_locked":x.status===1}   });
                     
-                }).catch(function(db_err)
+                }).catch(function(err)
                 {
-                    console.log("ERROR: db.get_new_plan failed")
-                    console.log(db_err.message)
-                    res.writeHeader(500) 
-                    res.end();                    
+                    console.log("ERROR:")
+                    console.log(err.message)
+                    fallback_page(req,res,next,500)           
                 })
                 /*
                 db.get_new_plan(req.params.plan_id,function(x)
@@ -424,27 +463,46 @@ require('./src/db.js').get(config.db, function(db)
         }
     })
 
-    app.put('/plans2/:plan_id',function(req,res)
+    app.put('/plans/:plan_id',function(req,res)
     {
+        console.log(req.body)
+        
         if(!req.session.user_id)
         {
-            console.log("try to access page that requires login. redirect to /")
-            res.redirect('/')
-        }
-        else if( req.body['value']===""  )
-        {
-            res.write("bad request")
-            res.end()            
+            console.log("do not update. login required")
+            res.writeHeader(403,{"Content-Type":"application/json"})
+            res.write(JSON.stringify({}))
+            res.end()
         }
         else
         {
-            console.log(req.body)
-            db.update_new_plan2( req.body['plan_id'], req.body['month'], req.body['key'], req.body['value'], function()
+            get_user_state_for_plan(db,req.session.user_id,req.body['plan_id']).then(function(state)
             {
-                res.write("updated")
-                res.end()
+                console.log(state) // TODO: make an function for 
+                
+                if( !is_valid_value(req.body['value'])  )
+                {
+                    console.log("invalid value")
+                    res.writeHeader(400,{"Content-Type":"application/json"})
+                    res.write(JSON.stringify({}))
+                    res.end()
+                }
+                else
+                {
+                    db.update_plan_cell( req.body['plan_id'], req.body['month'], req.body['key'], req.body['value']).then(function(x)
+                    {
+                        console.log("updated!")
+                        res.writeHeader(200,{"Content-Type":"application/json"})
+                        res.write(JSON.stringify({}))
+                        res.end()
+                    })
+                }                
             })
+            
         }
+        
+        
+
     })
     
     
@@ -493,33 +551,6 @@ require('./src/db.js').get(config.db, function(db)
             db.set_plan_state("2",req.params.plan_id,function()
             {
                 res.redirect("/plans/"+req.params.plan_id)  
-            })
-        }
-    })
-    
-    app.put('/plans/:plan_id',function(req,res)
-    {
-        if(!req.session.user_id)
-        {
-            console.log("try to access page that requires login. redirect to /")
-            res.redirect('/')
-        }
-        else
-        {
-            var update_data = {}
-            for(key in req.body)
-            {
-              if(key[0]!="_")
-              {
-                if(req.body[key]!=req.body["_"+key])
-                {
-                  update_data[key] = req.body[key]
-                }
-              }
-            }        
-            db.update_new_plan(req.params.plan_id,update_data,function()
-            {
-                res.redirect('/plans/'+req.params.plan_id)             
             })
         }
     })

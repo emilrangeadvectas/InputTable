@@ -38,18 +38,6 @@ JOIN input_table_division AS itd ON itd.id = it_._division_id
 
 
 
-function is_valid(x)
-{
-  if(x==="") return false;
-  var reg = /^[0-9 ]+$/ //spaces are allowed since they are being trimmed
-  if(!reg.test(x)) return false;
-  
-  var v = x.split(' ').join('');
-  
-  if(v>1000000) return false;
-  if(v<0) return false;
-  return true;
-}
 
 function do_process(x)
 {
@@ -63,23 +51,6 @@ function do_output(x)
 	return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
-function get_user_plan(mssql,user,plan_id,callback)
-{
-    //var sql = "SELECT [table], status FROM input_table WHERE [user] = @user";
-    var sql = "SELECT [table], status, name FROM input_table JOIN input_table_group_plans ON input_table.group_plan_id = input_table_group_plans.id  WHERE input_table.[id] = @plan_id"
-    new mssql.Request()
-	  .input('plan_id',mssql.VarChar(255),plan_id)
-      .query(sql,function(err,recordsets)
-      {
-        var t = recordsets.recordsets[0][0].table;
-        var s = recordsets.recordsets[0][0].status;
-        var n = recordsets.recordsets[0][0].name;
-        callback(t,s,n);
-      })    
-}
-
-
-
 exports.get = function(config,callback)
 {
     mssql.connect(config, function (err)
@@ -88,7 +59,7 @@ exports.get = function(config,callback)
 
         db.get_plan_state = function(user,plan_id,callback)
         {
-            var sql = "SELECT status, name FROM input_table JOIN input_table_group_plans ON input_table_group_plans.id = input_table.group_plan_id WHERE input_table.[id] = @plan_id ";
+            var sql = "SELECT status, name FROM input_table_plans JOIN input_table_group_plans ON input_table_group_plans.id = input_table.group_plan_id WHERE input_table.[id] = @plan_id ";
             new mssql.Request()
               .input('plan_id',mssql.BigInt,plan_id)
               .query(sql,function(err,r)
@@ -100,7 +71,7 @@ exports.get = function(config,callback)
         
         db.set_plan_state = function(state,plan_id,callback)
         {
-            var sql = "UPDATE input_table SET status = @state WHERE id = @plan_id";
+            var sql = "UPDATE input_table_plans SET status = @state WHERE id = @plan_id";
             new mssql.Request()
               .input('state',mssql.BigInt,state)
               .input('plan_id',mssql.BigInt,plan_id)
@@ -121,7 +92,7 @@ exports.get = function(config,callback)
                   {
                       new mssql.Request()
                         .input('group_plan_id',mssql.VarChar(255),i.ID)
-                        .query("SELECT * FROM input_table WHERE group_plan_id = @group_plan_id",function(err,r)
+                        .query("SELECT * FROM input_table_plans WHERE group_plan_id = @group_plan_id",function(err,r)
                         {
                           var up = []
                           r.recordset.forEach(function(uu)
@@ -167,7 +138,7 @@ exports.get = function(config,callback)
         
         db.create_plan = function(division_id,group_plan_id,callback)
         {
-            var sql = "INSERT INTO input_table ([_division_id],[_group_plan_id],[status]) VALUES (@division_id,@group_plan_id,0)";
+            var sql = "INSERT INTO input_table_plans ([_division_id],[_group_plan_id],[status]) VALUES (@division_id,@group_plan_id,0)";
             new mssql.Request()
                 .input('division_id',mssql.BigInt,division_id)
                 .input('group_plan_id',mssql.BigInt,group_plan_id)
@@ -202,9 +173,9 @@ exports.get = function(config,callback)
 
                           "DECLARE @PivotTableSQL NVARCHAR(MAX) "+
                           "SET @PivotTableSQL = N' "+
-                          "SELECT * FROM  (SELECT itd.name AS d ,CONCAT(status,''|'',  (SELECT it.id FROM input_table AS it WHERE itd.id = it._division_id AND itgp.id = it._group_plan_id )   ) as status, itgp.name AS group_plan FROM input_table_group_plans AS itgp "+
+                          "SELECT * FROM  (SELECT itd.name AS d ,CONCAT(status,''|'',  (SELECT it.id FROM input_table_plans AS it WHERE itd.id = it._division_id AND itgp.id = it._group_plan_id )   ) as status, itgp.name AS group_plan FROM input_table_group_plans AS itgp "+
                           "JOIN input_table_division AS itd ON 1=1 "+
-                          "LEFT JOIN input_table AS it ON it._division_id = itd.id AND it._group_plan_id = itgp.ID) AS r "+
+                          "LEFT JOIN input_table_plans AS it ON it._division_id = itd.id AND it._group_plan_id = itgp.ID) AS r "+
                           "PIVOT (   max([status]) for [d] IN ( "+
                           "' + @PivotColumnHeaders + ' "+
                           ") ) as t; "+
@@ -277,7 +248,7 @@ exports.get = function(config,callback)
             })            
         }
 
-        db.get_new_plan = function(plan_id)
+        db.get_plan = function(plan_id)
         {
 
             return new Promise(function(res,rej)
@@ -322,13 +293,14 @@ exports.get = function(config,callback)
                           "LEFT JOIN #temp2 ON #temp2.id = d.id "+
                           "ORDER BY v; "+
                           
-                          "SELECT it.status, itgp.name AS group_plan_name, itd.name AS division_name FROM input_table AS it JOIN input_table_group_plans AS itgp ON itgp.ID = it._group_plan_id JOIN input_table_division AS itd ON itd.id = it._division_id WHERE it.id = @plan_id";
+                          "SELECT it.status, itgp.name AS group_plan_name, itd.name AS division_name FROM input_table_plans AS it JOIN input_table_group_plans AS itgp ON itgp.ID = it._group_plan_id JOIN input_table_division AS itd ON itd.id = it._division_id WHERE it.id = @plan_id";
                           
                 new mssql.Request()
                     .input('plan_id',mssql.BigInt,plan_id)
                     .query(sql,function(err,r)
                     {
                         if(err) rej(err)
+                        else if(r.recordsets[1].length==0) rej(new Error("could not find plan"))
                         else res( {"body":r.recordset, "header":Object.keys(r.recordset[0]),"status":r.recordsets[1][0]['status'],"group_plan_name":r.recordsets[1][0]['group_plan_name'],"division_name":r.recordsets[1][0]['division_name'] })
                     })          
 
@@ -337,25 +309,23 @@ exports.get = function(config,callback)
         }
 
 
-        db.update_new_plan2 = function(plan_id,month,id,value,c)
+        db.update_plan_cell = function(plan_id,month,id,value)
         {
-            console.log("----")
-            console.log(plan_id)
-            console.log(month)
-            console.log(id)
-            console.log(value)
-            
-            var sql = "INSERT INTO input_table_input ([value], [month], [_accounts_id], [_plan_id]) VALUES (@value,@month,@id,@plan_id);"
-            new mssql.Request()
-                .input('plan_id',mssql.BigInt,plan_id)
-                .input('id',mssql.BigInt,id)
-                .input('month',mssql.VarChar(3),month)
-                .input('value',mssql.Decimal(18,4),value)
-                .query(sql,function(err,r)
-                {      
-                    console.log(err)
-                    c();
-                })                    
+            return new Promise(function(res,rej)
+            {
+                var sql = "INSERT INTO input_table_input ([value], [month], [_accounts_id], [_plan_id]) VALUES (@value,@month,@id,@plan_id);"
+                new mssql.Request()
+                    .input('plan_id',mssql.BigInt,plan_id)
+                    .input('id',mssql.BigInt,id)
+                    .input('month',mssql.VarChar(3),month)
+                    .input('value',mssql.Decimal(18,4),value)
+                    .query(sql,function(err,r)
+                    {      
+                        if(err) rej()
+                        else res();
+                    })                    
+                
+            })
 
         }
         
@@ -427,7 +397,7 @@ exports.get = function(config,callback)
 						  "FROM input_table_group_plans AS itg "+
 						  "JOIN input_table_divsion_user AS itdu ON [user_id]=' + @user_id + '  "+
 						  "JOIN input_table_division AS itd ON itdu.divions_id = itd.id "+
-						  "LEFT JOIN input_table AS it ON it._division_id = itd.id AND it._group_plan_id = itg.ID "+
+						  "LEFT JOIN input_table_plans AS it ON it._division_id = itd.id AND it._group_plan_id = itg.ID "+
 						  ") AS r "+
 						  "PIVOT (   max([f]) for [d_id] IN ( "+
 						  "' + @PivotColumnHeaders + ' "+
@@ -458,7 +428,7 @@ exports.get = function(config,callback)
                           ") AS it_max_id "+
                           "JOIN input_table_input AS it ON it.id = it_max_id.id "+
                           "JOIN input_table_accounts AS ita ON ita.id = it._accounts_id "+
-                          "JOIN input_table AS it_ ON it_.id = it._plan_id "+
+                          "JOIN input_table_plans AS it_ ON it_.id = it._plan_id "+
                           "JOIN input_table_group_plans AS itgp ON itgp.ID = it_._group_plan_id "+
                           "JOIN input_table_division AS itd ON itd.id = it_._division_id "+
                           "JOIN input_table_accounts AS itap ON itap.id = ita.parent_id "+ 
@@ -484,6 +454,25 @@ exports.get = function(config,callback)
                     {
                         if(err) rej(err);
                         else res( {"body":r.recordset, "header":['qlik_user']} )
+                    }) 
+            })
+        }
+
+        db.get_user_state_for_plan = function(user_id,plan_id)
+        {
+            return new Promise( function(res,rej)
+            {
+                var sql = "SELECT is_admin, status FROM input_table_divsion_user AS itdv "+
+                      "JOIN input_table_plans AS itp ON itp.id =  itdv.divions_id "+
+                      "JOIN input_table_users AS itu ON itu.id =  itp.id "+
+                      "WHERE itp.id = @plan AND itdv.user_id = @user ";
+                new mssql.Request()
+					.input('user',mssql.BigInt,user_id) 
+					.input('plan',mssql.BigInt,plan_id)
+                    .query(sql,function(err,r)
+                    {
+                        if(err) rej(err);
+                        else res( r.recordsets )
                     }) 
             })
         }

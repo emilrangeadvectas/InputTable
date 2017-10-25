@@ -1,10 +1,5 @@
 html
-    head
-        link(rel="stylesheet",type="text/css",href="/style.css")
-        
-        script(src="https://code.jquery.com/jquery-3.2.1.min.js",integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=",crossorigin="anonymous")
-        
-        title plan
+    include include/html_head.pug
     body
         include include/head.pug
 
@@ -99,18 +94,20 @@ html
             function save_value(x,plan_id,name)
             {
                 var t = name.split(";")
-                console.log(x)
                 $.ajax(
                 {
-                  url: '/plans2/'+plan_id,
+                  url: '/plans/'+plan_id,
                   data: JSON.stringify({"plan_id":plan_id,"month":t[1],"key":t[0],"value":x.value}),
                   method:"PUT",
                   contentType: "application/json"
 
                 }).done(function(d)
                 {
-                    console.log(d)
-                });                
+                    $(x).removeClass("error")
+                }).fail(function(r)
+                {
+                    $(x).addClass("error")
+                });
             }
         
             function show_hide(o,t)

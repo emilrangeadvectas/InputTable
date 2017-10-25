@@ -1,8 +1,6 @@
 html
-  head
-    title MB-input
+  include include/html_head.pug
   body
-    link(rel="stylesheet",type="text/css",href="/style.css")
     include include/head.pug
     h2 User group plans
     h3 Create new group plan
@@ -34,4 +32,3 @@ html
             tr
                 each val2 in val
                     td=val2
-                            
