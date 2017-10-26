@@ -41,14 +41,30 @@ function get_user_state_for_plan(db,user_id,plan_id)
 {
     return new Promise(function(res,rej)
     {
+        console.log("!!!!!!!!!!!!!!!!!!!!!!!!!")
         db.get_user_state_for_plan(user_id,plan_id).then(function(x)
         {
-//            [ [ { is_admin: 1, status: 0 } ] ]
-                //remap this:
-                // 0 not access, no valid user, OR no valid plan
-                // 1 access, can write
-                // 2 access, but is locked
-            res(x);            
+            console.log("/---")
+            console.log(x)
+            var f = x[0][0]
+            console.log(f)
+            if(f['is_admin'])
+            {
+                if(f['status']==2) { res(2); return; }
+                res(1);
+                return;
+            }
+            else
+            {
+                if(f['status']==2 || f['status']==1 ) { res(2); return; }
+                res(1);
+                return;
+            }
+            console.log("?")
+            // 0 not access, no valid user, OR no valid plan
+            // 1 access, can write
+            // 2 access, but is locked
+            res(0);            
         });
     })
 }
@@ -65,6 +81,7 @@ var fallback_page = function(req,res,next,status)
 
 function is_valid_value(x)
 {
+  x = ""+x;
   if(x==="") return false;
   var reg = /^[0-9 ]+$/ //spaces are allowed since they are being trimmed
   if(!reg.test(x)) return false;
@@ -97,6 +114,7 @@ require('./src/db.js').get(config.db, function(db)
   {
       console.log("==========================================")
       console.log(req.method+" "+req.url)
+      console.log(req.body)
       console.log("user: "+req.session.user_id)
       console.log("- - - - - - - - - - - - - - - - - - - - - ")
       
@@ -211,8 +229,14 @@ require('./src/db.js').get(config.db, function(db)
         }
         else
         {
-            if(req.cookies['start_page'] && req.cookies['start_page']!="/") res.redirect(req.cookies['start_page'])
-            else res.redirect("/plans")
+            if(req.cookies['start_page'] && req.cookies['start_page']!="/")
+            {
+                res.redirect(req.cookies['start_page'])
+            }
+            else
+            {
+                res.redirect("/plans")
+            }
         }
     });
     // ----
@@ -261,6 +285,7 @@ require('./src/db.js').get(config.db, function(db)
 
     app.post('/login', function(req, res)
     {
+        console.log(req.body)
         n = req.body['login_name'];
         if(n)
         {
@@ -293,7 +318,7 @@ require('./src/db.js').get(config.db, function(db)
     // ----
   
     // ---- ADMIN
-    app.get('/admin',function(req, resp)
+    app.get('/admin',function(req, resp,next)
     {
         if(!req.session.user_id)
         {
@@ -302,55 +327,66 @@ require('./src/db.js').get(config.db, function(db)
         }
         else
         {
-            var t = undefined
-            db.get_pivot_user_group_plan().then(function(o)
+            
+            db.is_admin( req.session.user_id ).then(function(is_admin)
             {
-                t = o
-                return db.get_division_user_state();
-                
-            }).then(function(du)
-            {
-                body = t.recordset
-                if(body.length===0)
+                if(is_admin)
                 {
-                    t = {"header":[],"body":[]}
+                    
+                    var t = undefined
+                    db.get_pivot_user_group_plan().then(function(o)
+                    {
+                        t = o
+                        return db.get_division_user_state();
+                        
+                    }).then(function(du)
+                    {
+                        body = t.recordset
+                        if(body.length===0)
+                        {
+                            t = {"header":[],"body":[]}
+                            
+                        }
+                        else
+                        {
+                            body = body.map(function(x)
+                            {
+                                for(k in x)
+                                {
+                                    if(k=='group_plan')
+                                        x[k] = {"text":x[k]}                            
+                                    else
+                                    {
+                                        if(x[k]==="|")
+                                        {
+                                            x[k] = {"text":   'not created'}                                
+                                        }
+                                        else
+                                        {
+                                            o = x[k].split("|")
+                                            y = parseInt(o[0])
+                                            x[k] = {"text":   y===0 ? 'work' : y===1 ? 'review' : y===2 ? 'sign' : '?'    ,"style":y===0 ? 'work' : y===1 ? 'review' : y===2 ? 'sign' : ''}
+                                            x[k].link = o[1]
+                                        }
+                                    }
+                                }
+                                return x
+                            })
+                            t = {"header":Object.keys(t.recordset[0]),"body":body}
+                        }
+                        resp.render('admin',{division_user:du, user_group_plan:t,header:{title:"Admin","user":req.cookies['login_user_id']}});        
+                    })                    
                     
                 }
                 else
                 {
-                    body = body.map(function(x)
-                    {
-                        for(k in x)
-                        {
-                            if(k=='group_plan')
-                                x[k] = {"text":x[k]}                            
-                            else
-                            {
-                                if(x[k]==="|")
-                                {
-                                    x[k] = {"text":   'not created'}                                
-                                }
-                                else
-                                {
-                                    o = x[k].split("|")
-                                    y = parseInt(o[0])
-                                    x[k] = {"text":   y===0 ? 'work' : y===1 ? 'review' : y===2 ? 'sign' : '?'    ,"style":y===0 ? 'work' : y===1 ? 'review' : y===2 ? 'sign' : ''}
-                                    x[k].link = o[1]
-                                }
-                            }
-                        }
-                        return x
-                    })
-                    t = {"header":Object.keys(t.recordset[0]),"body":body}
+                    console.log("!!!!!.")
+                    fallback_page(req,resp,next,403)                    
                 }
-                resp.render('admin',{division_user:du, user_group_plan:t,header:{title:"Admin","user":req.cookies['login_user_id']}});        
-            })
-            .catch(function(err)
-            {
-                console.log("ERROR:")
-                console.log(err.message)
-                fallback_page(req,resp,next,500)
-            })
+            })                
+            
+
+            
         }
     })
 
@@ -478,14 +514,37 @@ require('./src/db.js').get(config.db, function(db)
         {
             get_user_state_for_plan(db,req.session.user_id,req.body['plan_id']).then(function(state)
             {
-                console.log(state) // TODO: make an function for 
-                
-                if( !is_valid_value(req.body['value'])  )
+                console.log("state:"+state)
+                if(state!=1)
+                {
+                    console.log("do not have access to write this plan")
+                    res.writeHeader(403,{"Content-Type":"application/json"})
+                    res.write(JSON.stringify({}))
+                    res.end()
+                    
+                }
+                else if( !is_valid_value(req.body['value'])  )
                 {
                     console.log("invalid value")
                     res.writeHeader(400,{"Content-Type":"application/json"})
                     res.write(JSON.stringify({}))
                     res.end()
+                }
+                else if(!req.body['month'])
+                {
+                    console.log("invalid month")
+                    res.writeHeader(400,{"Content-Type":"application/json"})
+                    res.write(JSON.stringify({}))
+                    res.end()
+                    
+                }
+                else if(!req.body['key'])
+                {
+                    console.log("invalid key")
+                    res.writeHeader(400,{"Content-Type":"application/json"})
+                    res.write(JSON.stringify({}))
+                    res.end()
+                    
                 }
                 else
                 {
@@ -497,6 +556,10 @@ require('./src/db.js').get(config.db, function(db)
                         res.end()
                     })
                 }                
+            }).catch(function(x)
+            {
+                res.writeHeader(500)
+                res.end()                
             })
             
         }

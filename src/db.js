@@ -124,9 +124,11 @@ exports.get = function(config,callback)
         
         db.is_admin = function(user_id)
         {
+            console.log("=====")
+            console.log(user_id)
             return new Promise(function(res,rej)
 			{
-                sql = "SELECT is_admin FROM input_table_users WHERE id = @user_id"; ;
+                var sql = "SELECT is_admin FROM input_table_users WHERE id = @user_id"; ;
                 new mssql.Request()
                     .input('user_id',mssql.BigInt,user_id)
                     .query(sql,function(err,r)
