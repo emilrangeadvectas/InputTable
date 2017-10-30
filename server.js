@@ -249,9 +249,10 @@ require('./src/db.js').get(config.db, function(db)
     // ----
 
     // ---- AUTH
-    app.get('/auth/:x_qlik_session?', function(req, res)
+    app.get('/auth', function(req, res)
     {
-        var x_qlik_session = req.params.x_qlik_session ? req.params.x_qlik_session : req.cookies['X-Qlik-Session'];
+		console.log(req.cookies['X-Qlik-Session'])
+        var x_qlik_session = req.cookies['X-Qlik-Session'];
 
         if(x_qlik_session)
         {
