@@ -371,7 +371,8 @@ exports.get = function(config,callback)
 				new mssql.Request()
 					.query(sql,function(err,r)
 					{
-                        res(r.recordset[0].id)
+                        if(r.recordset.length==0) res(false)
+                        else res(r.recordset[0].id)
                     });
             })
         }
