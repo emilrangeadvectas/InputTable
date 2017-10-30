@@ -84,6 +84,7 @@ Promise.all( [
     test_('/plans/this_do_not_exist',{"status":302,"location":"/"},'GET',''),
     test_('/this_do_not_exist',{"status":404},'GET',''),
 
+    test_('/plans',{"status":403},'PUT',JSON.stringify({"plan_id":1,"value":2}),undefined,true)
 
 ]).then(function(x)
 {
@@ -106,10 +107,10 @@ Promise.all( [
     test_('/plans/this_do_not_exist',{"status":500},'GET','',connect_sid_none_admin);
     test_('/admin',{"status":403},'GET','',connect_sid_none_admin);
     
-    // PUT VALUE
-    test_('/plans/1',{"status":400},'PUT',JSON.stringify({"plan_id":1,"value":2}),connect_sid_admin,true);
-    test_('/plans/1',{"status":200},'PUT',JSON.stringify({"plan_id":1,"value":2,"month":"JAN","key":12}),connect_sid_admin,true);
-    
+    // PUT VALUE	
+    test_('/plans',{"status":400},'PUT',JSON.stringify({"plan_id":1,"value":2}),connect_sid_admin,true);
+    test_('/plans',{"status":200},'PUT',JSON.stringify({"plan_id":1,"value":2,"month":"JAN","key":12}),connect_sid_admin,true);
+    test_('/plans',{"status":403},'PUT',JSON.stringify({"plan_id":1,"value":2,"month":"JAN","key":12}),connect_sid_none_admin,true);
     
     
     

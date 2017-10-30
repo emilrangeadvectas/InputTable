@@ -467,7 +467,7 @@ exports.get = function(config,callback)
                 var sql = "SELECT is_admin, status FROM input_table_divsion_user AS itdv "+
                       "JOIN input_table_plans AS itp ON itp.id =  itdv.divions_id "+
                       "JOIN input_table_users AS itu ON itu.id =  itp.id "+
-                      "WHERE itp.id = @plan AND itdv.user_id = @user ";
+                      "WHERE itp.id = @plan AND itu.id = @user ";
                 new mssql.Request()
 					.input('user',mssql.BigInt,user_id) 
 					.input('plan',mssql.BigInt,plan_id)

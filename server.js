@@ -23,12 +23,14 @@ else
     qps_auth = require('./src/mock/qps_auth.js');
 }
 
-main_password = "jkl"
+main_password = "jkl_987654321"
 var https_options = false
+
 /*
 var https_options = {
   pfx: fs.readFileSync("c:\\certs\\server.pfx")
-};*/
+};
+*/
 
 function status_code_to_text(x)
 {
@@ -41,11 +43,14 @@ function get_user_state_for_plan(db,user_id,plan_id)
 {
     return new Promise(function(res,rej)
     {
-        console.log("!!!!!!!!!!!!!!!!!!!!!!!!!")
         db.get_user_state_for_plan(user_id,plan_id).then(function(x)
         {
-            console.log("/---")
-            console.log(x)
+			if(x[0].length===0)
+			{
+				res(0);
+				return;
+			}
+			
             var f = x[0][0]
             console.log(f)
             if(f['is_admin'])
@@ -165,6 +170,8 @@ require('./src/db.js').get(config.db, function(db)
         db.get_rapport().then(function(x)
         {
             var csv = x.header.join(";")
+            if(x.body.length==0) csv += "\n"
+
             x.body.forEach(function(i)
             {
                 csv += "\n"
@@ -499,10 +506,8 @@ require('./src/db.js').get(config.db, function(db)
         }
     })
 
-    app.put('/plans/:plan_id',function(req,res)
-    {
-        console.log(req.body)
-        
+    app.put('/plans',function(req,res)
+    {        
         if(!req.session.user_id)
         {
             console.log("do not update. login required")
@@ -514,7 +519,6 @@ require('./src/db.js').get(config.db, function(db)
         {
             get_user_state_for_plan(db,req.session.user_id,req.body['plan_id']).then(function(state)
             {
-                console.log("state:"+state)
                 if(state!=1)
                 {
                     console.log("do not have access to write this plan")
