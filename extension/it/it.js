@@ -35,8 +35,8 @@ define( ["qlik","text!./style.css","text!./config.json"], function (qlik,cssCont
 			$element.empty();
             var iframe = document.createElement("IFRAME")			
             iframe.src = config.url
-			//div.
-            var canvasWidth = $element[0].clientWidth-130;
+
+            var canvasWidth = $element[0].clientWidth;
             var canvasHeight = $element[0].clientHeight;
             iframe.width = canvasWidth
             iframe.height = canvasHeight
@@ -44,36 +44,8 @@ define( ["qlik","text!./style.css","text!./config.json"], function (qlik,cssCont
 			iframe.style.border=0
 			iframe.style.padding=0
 			iframe.style.margin=0
-			iframe.style.float="left"
-
 			
-            var reload = document.createElement("INPUT")	
-            reload.type = "button"
-            reload.value = "reload"
-
-
-            reload.onclick = function()
-			{
-                qlik.currApp(this).doReload()
-			}
-
-			var submit = document.createElement("INPUT")	
-            submit.type = "button"
-            submit.value = "submit"
-
-
-			submit.onclick = function()
-			{
-				iframe.contentWindow.submit_form();				
-			}
-			
-            $element.append(iframe)
-            $element.append(reload)
-            $element.append(submit)
-
-
-
-            
+            $element.append(iframe)            
 		}
     };
 });

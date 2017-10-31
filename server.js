@@ -60,7 +60,6 @@ function get_user_state_for_plan(db,user_id,plan_id)
 			}
 			
             var f = x[0][0]
-            console.log(f)
             if(f['is_admin'])
             {
                 if(f['status']==2) { res(2); return; }
@@ -73,7 +72,6 @@ function get_user_state_for_plan(db,user_id,plan_id)
                 res(1);
                 return;
             }
-            console.log("?")
             // 0 not access, no valid user, OR no valid plan
             // 1 access, can write
             // 2 access, but is locked
@@ -88,7 +86,7 @@ var fallback_page = function(req,res,next,status)
     res.status(status)
     res.setHeader("Content-Type","text/html")
     res.render('fallback',{"status":status});
-  
+    next();
 }
 
 
@@ -125,11 +123,11 @@ require('./src/db.js').get(config.db, function(db)
   
   app.use(function(req,res,next)
   {
-      console.log("==========================================")
-      console.log(req.method+" "+req.url)
-      console.log(req.body)
-      console.log("user: "+req.session.user_id)
-      console.log("- - - - - - - - - - - - - - - - - - - - - ")
+      res.locals.it_log = []
+      res.locals.it_log.push(req.method+" "+req.url)
+      res.locals.it_log.push(JSON.stringify(req.body))
+      res.locals.it_log.push("user: "+req.session.user_id)
+      res.locals.it_log.push("- - - - - - - - - - - - - - - - - - - - - ")
       
     if (true || req.session.know_password===true || req.url == '/'+main_password || req.url == '/rest5' || req.url == '/rest_user' || req.url == '/iframe')
     {
@@ -159,7 +157,7 @@ require('./src/db.js').get(config.db, function(db)
         });
     })
 
-    app.post('/reload',function(req,res)
+    app.post('/reload',function(req,res,next)
     {
         if(req.session.user_id)
         {
@@ -167,17 +165,20 @@ require('./src/db.js').get(config.db, function(db)
             {
                 res.writeHeader(204)
                 res.end()
+                next();
             })
             .catch(function()
             {
                 res.writeHeader(500)                
                 res.end()
+                next();
             });
         }
         else
         {
             res.writeHeader(403);            
             res.end()
+            next();
         }
     })
     
@@ -211,8 +212,8 @@ require('./src/db.js').get(config.db, function(db)
         })
         .catch(function(db_err)
         {
-            console.log("ERROR: db.get_rapport failed")
-            console.log(db_err.message)
+            res.locals.it_log.push("ERROR: db.get_rapport failed")
+            res.locals.it_log.push(db_err.message)
             res.writeHeader(500) 
             res.end();
         })
@@ -243,8 +244,8 @@ require('./src/db.js').get(config.db, function(db)
         })
         .catch(function(db_err)
         {
-            console.log("ERROR: db.get_rapport_user failed")
-            console.log(db_err.message)
+            res.locals.it_log.push("ERROR: db.get_rapport_user failed")
+            res.locals.it_log.push(db_err.message)
             res.writeHeader(500) 
             res.end();
         })
@@ -253,30 +254,32 @@ require('./src/db.js').get(config.db, function(db)
     // ----
   
     // ---- /
-    app.get('/', function(req, res)
+    app.get('/', function(req, res,next)
     {          
         if(!req.session.user_id)
         {
             res.redirect("/auth")
+            next();
         }
         else
         {
             if(req.cookies['start_page'] && req.cookies['start_page']!="/")
             {
                 res.redirect(req.cookies['start_page'])
+                next();
             }
             else
             {
                 res.redirect("/plans")
+                next();
             }
         }
     });
     // ----
 
     // ---- AUTH
-    app.get('/auth', function(req, res)
+    app.get('/auth', function(req, res,next)
     {
-		console.log(req.cookies['X-Qlik-Session'])
         var x_qlik_session = req.cookies['X-Qlik-Session'];
 
         if(x_qlik_session)
@@ -285,40 +288,45 @@ require('./src/db.js').get(config.db, function(db)
             {
                 if(user_id!==false)
                 {
-                    console.log('as user id = '+user_id)
+                    res.locals.it_log.push('as user id = '+user_id)
                     req.session.user_id = user_id
                     res.redirect("/")               
+                    next();
                 }
                 else
                 {
-                    console.log("could not auth")
-                    console.log("redirects to login page")
+                    res.locals.it_log.push("could not auth")
+                    res.locals.it_log.push("redirects to login page")
                     res.redirect("/login")
+                    next();
                 }
             
             }).catch(function(a)
             {
-                console.log("error in auth. redirect to login")
+                res.locals.it_log.push("error in auth. redirect to login")
                 res.redirect("/login")            
+                next();
             })
         }
         else
         {
-            console.log("no x-qlik-session found. redirect to login")
-            res.redirect("/login")                        
+            res.locals.it_log.push("no x-qlik-session found. redirect to login")
+            res.redirect("/login")     
+            next();
         }
     });
     // ----
 
     // ---- LOGIN
-    app.get('/login', function(req, res)
+    app.get('/login', function(req, res, next)
     {
         res.render('login', {});  
+        
+        next();
     })
 
-    app.post('/login', function(req, res)
+    app.post('/login', function(req, res,next)
     {
-        console.log(req.body)
         n = req.body['login_name'];
         if(n)
         {
@@ -328,16 +336,19 @@ require('./src/db.js').get(config.db, function(db)
                 {
                     req.session.user_id = user
                     res.redirect("/plans")
+                    next();
                 }
                 else
                 {
                     res.redirect("/")                    
+                    next();
                 }
             })
         }
         else
         {
             res.redirect("/")
+            next();
         }
     })
     // ----
@@ -347,6 +358,7 @@ require('./src/db.js').get(config.db, function(db)
     {
         req.session.user_id = null
         res.redirect("/")
+        next();
     })    
     // ----
   
@@ -355,8 +367,9 @@ require('./src/db.js').get(config.db, function(db)
     {
         if(!req.session.user_id)
         {
-            console.log("try to access page that requires login. redirect to /")
+            res.locals.it_log.push("try to access page that requires login. redirect to /")
             resp.redirect('/')
+            next();
         }
         else
         {
@@ -408,12 +421,12 @@ require('./src/db.js').get(config.db, function(db)
                             t = {"header":Object.keys(t.recordset[0]),"body":body}
                         }
                         resp.render('admin',{division_user:du, user_group_plan:t,header:{title:"Admin","user":req.cookies['login_user_id']}});        
+                        next();
                     })                    
                     
                 }
                 else
                 {
-                    console.log("!!!!!.")
                     fallback_page(req,resp,next,403)                    
                 }
             })                
@@ -428,7 +441,7 @@ require('./src/db.js').get(config.db, function(db)
     {
         if(!req.session.user_id)
         {
-            console.log("try to access page that requires login. redirect to /")
+            res.locals.it_log.push("try to access page that requires login. redirect to /")
             res.redirect('/')
         }
         else
@@ -443,12 +456,13 @@ require('./src/db.js').get(config.db, function(db)
     // ----
     
     // ---- PLAN:
-    app.get('/plans', function(req, res)
+    app.get('/plans', function(req, res,next)
     {
         if(!req.session.user_id)
         {
-            console.log("try to access page that requires login. redirect to /")
+            res.locals.it_log.push("try to access page that requires login. redirect to /")
             res.redirect('/')
+            next();
         }
         else
         {
@@ -473,10 +487,12 @@ require('./src/db.js').get(config.db, function(db)
                     })
                     
                     res.render('plans', { plans:d,"header":{"title":"Plans","user":req.session.user_id,"is_admin":is_admin,"hide_plan_view_link":true,}})                
+                    next();
                 })
                 .catch(function()
                 {
                     res.render('plans', { plans:{header:[],body:[]},"header":{"title":"Plans","user":req.session.user_id,"is_admin":is_admin,"hide_plan_view_link":true,}})                
+                    next();
                 })   
             })
         }
@@ -486,7 +502,7 @@ require('./src/db.js').get(config.db, function(db)
     {
         if(!req.session.user_id)
         {
-            console.log("try to access page that requires login. redirect to /")
+            res.locals.it_log.push("try to access page that requires login. redirect to /")
             res.redirect('/')
         }
         else
@@ -502,8 +518,9 @@ require('./src/db.js').get(config.db, function(db)
     {
         if(!req.session.user_id)
         {
-            console.log("try to access page that requires login. redirect to /")
+            res.locals.it_log.push("try to access page that requires login. redirect to /")
             res.redirect('/')
+            next();
         }
         else
         {
@@ -513,21 +530,13 @@ require('./src/db.js').get(config.db, function(db)
                 db.get_plan(req.params.plan_id).then(function(x)
                 {
                     res.render('plan',{"disable_form": x.status === 0 || (x.status === 1 && is_admin) ? false : ""  ,data:x.body,plan_id:req.params.plan_id, "header":{"user":req.cookies['login_user_id'],"is_admin":is_admin,  "plan":{"state":x.status},"title":"Plan: "+x.group_plan_name+", "+x.division_name,"plan_id":req.params.plan_id,"is_locked":x.status===1}   });
-                    
+                    next();
                 }).catch(function(err)
                 {
-                    console.log("ERROR:")
-                    console.log(err.message)
+                    res.locals.it_log.push("ERROR:")
+                    res.locals.it_log.push(err.message)
                     fallback_page(req,res,next,500)           
                 })
-                /*
-                db.get_new_plan(req.params.plan_id,function(x)
-                {
-                })
-                .catch(function(err)
-                {
-                    
-                })*/
             })
         }
     })
@@ -536,7 +545,7 @@ require('./src/db.js').get(config.db, function(db)
     {        
         if(!req.session.user_id)
         {
-            console.log("do not update. login required")
+            res.locals.it_log.push("do not update. login required")
             res.writeHeader(403,{"Content-Type":"application/json"})
             res.write(JSON.stringify({}))
             res.end()
@@ -547,7 +556,7 @@ require('./src/db.js').get(config.db, function(db)
             {
                 if(state!=1)
                 {
-                    console.log("do not have access to write this plan")
+                    res.locals.it_log.push("do not have access to write this plan")
                     res.writeHeader(403,{"Content-Type":"application/json"})
                     res.write(JSON.stringify({}))
                     res.end()
@@ -555,14 +564,14 @@ require('./src/db.js').get(config.db, function(db)
                 }
                 else if( !is_valid_value(req.body['value'])  )
                 {
-                    console.log("invalid value")
+                    res.locals.it_log.push("invalid value")
                     res.writeHeader(400,{"Content-Type":"application/json"})
                     res.write(JSON.stringify({}))
                     res.end()
                 }
                 else if(!req.body['month'])
                 {
-                    console.log("invalid month")
+                    res.locals.it_log.push("invalid month")
                     res.writeHeader(400,{"Content-Type":"application/json"})
                     res.write(JSON.stringify({}))
                     res.end()
@@ -570,7 +579,7 @@ require('./src/db.js').get(config.db, function(db)
                 }
                 else if(!req.body['key'])
                 {
-                    console.log("invalid key")
+                    res.locals.it_log.push("invalid key")
                     res.writeHeader(400,{"Content-Type":"application/json"})
                     res.write(JSON.stringify({}))
                     res.end()
@@ -580,7 +589,7 @@ require('./src/db.js').get(config.db, function(db)
                 {
                     db.update_plan_cell( req.body['plan_id'], req.body['month'], req.body['key'], req.body['value']).then(function(x)
                     {
-                        console.log("updated!")
+                        res.locals.it_log.push("updated!")
                         res.writeHeader(200,{"Content-Type":"application/json"})
                         res.write(JSON.stringify({}))
                         res.end()
@@ -603,7 +612,7 @@ require('./src/db.js').get(config.db, function(db)
     {
         if(!req.session.user_id)
         {
-            console.log("try to access page that requires login. redirect to /")
+            res.locals.it_log.push("try to access page that requires login. redirect to /")
             res.redirect('/')
         }
         else
@@ -620,7 +629,7 @@ require('./src/db.js').get(config.db, function(db)
     {
         if(!req.session.user_id)
         {
-            console.log("try to access page that requires login. redirect to /")
+            res.locals.it_log.push("try to access page that requires login. redirect to /")
             res.redirect('/')
         }
         else
@@ -636,7 +645,7 @@ require('./src/db.js').get(config.db, function(db)
     {
         if(!req.session.user_id)
         {
-            console.log("try to access page that requires login. redirect to /")
+            res.locals.it_log.push("try to access page that requires login. redirect to /")
             res.redirect('/')
         }
         else
@@ -648,6 +657,18 @@ require('./src/db.js').get(config.db, function(db)
         }
     })
     // ----
+
+    app.use(function(req,res,next)
+    {
+        console.log('\x1b[36m%s\x1b[0m', '===============================')
+        res.locals.it_log.forEach(function(i,u)
+        {
+            console.log('\x1b[36m%s\x1b[0m', i)            
+        })
+        console.log('http status: \x1b[33m%s\x1b[0m', res.statusCode)            
+        next();
+        
+    });
     
 
     if(!https_options)
