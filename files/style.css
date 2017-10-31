@@ -69,3 +69,5 @@ table.plan .value{white-space: nowrap}
 table.plan td{text-align:center}
 
 input.error{background:#fcc !important}
+
+.reload{background: #e0f !important}
