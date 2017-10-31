@@ -26,7 +26,7 @@ else
     qps_auth = require('./src/mock/qps_auth.js');
 
     console.log("Warning: using mocked QPS RELOAD")
-    qrs_reload = require('./src/mock/qrs_auth.js');
+    qrs_reload = require('./src/mock/qrs_reload.js');
 }
 
 
