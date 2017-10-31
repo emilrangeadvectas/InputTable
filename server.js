@@ -16,12 +16,20 @@ if(config.cert)
     console.log("Init QPS AUTH...")
     qps_auth = require('./src/qps_auth.js').cert(fs.readFileSync(config.cert.key),fs.readFileSync(config.cert.cert));
     console.log("...success")
+    console.log("Init QPS RELOAD...")
+    qrs_reload = require('./src/qrs_reload.js').cert(fs.readFileSync(config.cert.key),fs.readFileSync(config.cert.cert));
+    console.log("...success")
 }
 else
 {
     console.log("Warning: using mocked QPS AUTH")
     qps_auth = require('./src/mock/qps_auth.js');
+
+    console.log("Warning: using mocked QPS RELOAD")
+    qrs_reload = require('./src/mock/qrs_auth.js');
 }
+
+
 
 main_password = "jkl_987654321"
 var https_options = false
@@ -151,9 +159,26 @@ require('./src/db.js').get(config.db, function(db)
         });
     })
 
-    app.get('/style3.css', function(req, res)
+    app.post('/reload',function(req,res)
     {
-
+        if(req.session.user_id)
+        {
+            qrs_reload.reload().then(function()
+            {
+                res.writeHeader(204)
+                res.end()
+            })
+            .catch(function()
+            {
+                res.writeHeader(500)                
+                res.end()
+            });
+        }
+        else
+        {
+            res.writeHeader(403);            
+            res.end()
+        }
     })
     
     // ---- IFRAME
