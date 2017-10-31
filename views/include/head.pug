@@ -10,6 +10,7 @@ header(class=header.plan && header.plan.state==1 ? 'review' : (header.plan && he
     a(href='/plans/') Plan view
 
  if header.plan_id
+    
   if header.plan.state == 0
    form(method='POST',action='/plans/'+header.plan_id+'/review')
     input(type='hidden', value='PUT', name='_method')
@@ -34,6 +35,9 @@ header(class=header.plan && header.plan.state==1 ? 'review' : (header.plan && he
    form(method='POST',action='/plans/'+header.plan_id+'/review')
     input(type='hidden', value='PUT', name='_method')
     input(type='submit', value="review" class="review")
+
+  form(method='POST',action='/reload')
+   input(type='submit', value="reload", class="reload")
 
  h1=header.title
  div(class='end')
