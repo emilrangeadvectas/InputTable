@@ -124,8 +124,6 @@ exports.get = function(config,callback)
         
         db.is_admin = function(user_id)
         {
-            console.log("=====")
-            console.log(user_id)
             return new Promise(function(res,rej)
 			{
                 var sql = "SELECT is_admin FROM input_table_users WHERE id = @user_id"; ;
@@ -467,7 +465,7 @@ exports.get = function(config,callback)
             {
                 var sql = "SELECT is_admin, status FROM input_table_divsion_user AS itdv "+
                       "JOIN input_table_plans AS itp ON itp.id =  itdv.divions_id "+
-                      "JOIN input_table_users AS itu ON itu.id =  itp.id "+
+                      "JOIN input_table_users AS itu ON itu.id =  itdv.user_id "+
                       "WHERE itp.id = @plan AND itu.id = @user ";
                 new mssql.Request()
 					.input('user',mssql.BigInt,user_id) 

@@ -95,11 +95,12 @@ Promise.all( [
     var connect_sid_none_admin = x[7].headers['set-cookie'][0].split(";")[0].split("=")[1]
     
     return Promise.all([
-        // ADMIN
+
+    // ADMIN
         test_('/',{"status":302,"location":"/plans"},'GET','',connect_sid_admin),
         test_('/plans',{"status":200},'GET','',connect_sid_admin),
         test_('/plans/1',{"status":200},'GET','',connect_sid_admin),
-        test_('/plans/10000000000000',{"status":500},'GET','',connect_sid_admin),
+        test_('/plans/10000000000000',{"status":403},'GET','',connect_sid_admin),
         test_('/plans/this_do_not_exist',{"status":500},'GET','',connect_sid_admin),
         test_('/admin',{"status":200},'GET','',connect_sid_admin),
 
@@ -107,17 +108,20 @@ Promise.all( [
         test_('/',{"status":302,"location":"/plans"},'GET','',connect_sid_none_admin),
         test_('/plans',{"status":200},'GET','',connect_sid_none_admin),
         test_('/plans/1',{"status":200},'GET','',connect_sid_none_admin),
-        test_('/plans/10000000000000',{"status":500},'GET','',connect_sid_none_admin),
+        test_('/plans/2',{"status":403},'GET','',connect_sid_none_admin),
+        test_('/plans/10000000000000',{"status":403},'GET','',connect_sid_none_admin),
         test_('/plans/this_do_not_exist',{"status":500},'GET','',connect_sid_none_admin),
         test_('/admin',{"status":403},'GET','',connect_sid_none_admin),
         test_('/reload',{"status":204},'POST','',connect_sid_none_admin),
-        
+
         // PUT VALUE	
         test_('/plans',{"status":400},'PUT',JSON.stringify({"plan_id":1,"value":2}),connect_sid_admin,true),
         test_('/plans',{"status":200},'PUT',JSON.stringify({"plan_id":1,"value":2,"month":"JAN","key":12}),connect_sid_admin,true),
+        test_('/plans',{"status":200},'PUT',JSON.stringify({"plan_id":2,"value":2,"month":"JAN","key":12}),connect_sid_admin,true),
+        test_('/plans',{"status":403},'PUT',JSON.stringify({"plan_id":2,"value":2,"month":"JAN","key":12}),connect_sid_none_admin,true),
         test_('/plans',{"status":403},'PUT',JSON.stringify({"plan_id":1,"value":2,"month":"JAN","key":12}),connect_sid_none_admin,true),
         test_('/plans',{"status":403},'PUT',JSON.stringify({"plan_id":13,"value":2,"month":"JAN","key":12}),connect_sid_admin,true)
-
+        
     ]);
     
 }).then(function(x)

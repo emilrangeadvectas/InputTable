@@ -76,6 +76,9 @@ function get_user_state_for_plan(db,user_id,plan_id)
             // 1 access, can write
             // 2 access, but is locked
             res(0);            
+        }).catch(function(err)
+        {
+            rej(err)
         });
     })
 }
@@ -524,24 +527,39 @@ require('./src/db.js').get(config.db, function(db)
         }
         else
         {
-            res.cookie('start_page',req.url) 
-            db.is_admin(req.session.user_id).then(function(is_admin)
+            get_user_state_for_plan(db,req.session.user_id,req.params.plan_id).then(function(state)
+			{
+				if(state==0)
+				{
+                    fallback_page(req,res,next,403)
+				}
+				else
+				{
+					res.cookie('start_page',req.url) 
+					db.is_admin(req.session.user_id).then(function(is_admin)
+					{
+						db.get_plan(req.params.plan_id).then(function(x)
+						{
+							res.render('plan',{"disable_form": x.status === 0 || (x.status === 1 && is_admin) ? false : ""  ,data:x.body,plan_id:req.params.plan_id, "header":{"user":req.cookies['login_user_id'],"is_admin":is_admin,  "plan":{"state":x.status},"title":"Plan: "+x.group_plan_name+", "+x.division_name,"plan_id":req.params.plan_id,"is_locked":x.status===1}   });
+							next();
+						}).catch(function(err)
+						{
+							res.locals.it_log.push("ERROR:")
+							res.locals.it_log.push(err.message)
+							fallback_page(req,res,next,500)           
+						})
+					})
+				}
+			}).catch(function(err)
             {
-                db.get_plan(req.params.plan_id).then(function(x)
-                {
-                    res.render('plan',{"disable_form": x.status === 0 || (x.status === 1 && is_admin) ? false : ""  ,data:x.body,plan_id:req.params.plan_id, "header":{"user":req.cookies['login_user_id'],"is_admin":is_admin,  "plan":{"state":x.status},"title":"Plan: "+x.group_plan_name+", "+x.division_name,"plan_id":req.params.plan_id,"is_locked":x.status===1}   });
-                    next();
-                }).catch(function(err)
-                {
-                    res.locals.it_log.push("ERROR:")
-                    res.locals.it_log.push(err.message)
-                    fallback_page(req,res,next,500)           
-                })
+                res.locals.it_log.push("ERROR:")
+				res.locals.it_log.push(err.message)
+				fallback_page(req,res,next,500)                           
             })
         }
     })
 
-    app.put('/plans',function(req,res)
+    app.put('/plans',function(req,res,next)
     {        
         if(!req.session.user_id)
         {
@@ -549,18 +567,23 @@ require('./src/db.js').get(config.db, function(db)
             res.writeHeader(403,{"Content-Type":"application/json"})
             res.write(JSON.stringify({}))
             res.end()
+            next();
         }
         else
         {
             get_user_state_for_plan(db,req.session.user_id,req.body['plan_id']).then(function(state)
             {
+				console.log(req.session.user_id)
+				console.log(req.session.user_id,req.body['plan_id'])
+				
+				console.log(state)
                 if(state!=1)
                 {
                     res.locals.it_log.push("do not have access to write this plan")
                     res.writeHeader(403,{"Content-Type":"application/json"})
                     res.write(JSON.stringify({}))
                     res.end()
-                    
+                    next();
                 }
                 else if( !is_valid_value(req.body['value'])  )
                 {
@@ -568,6 +591,7 @@ require('./src/db.js').get(config.db, function(db)
                     res.writeHeader(400,{"Content-Type":"application/json"})
                     res.write(JSON.stringify({}))
                     res.end()
+                    next();
                 }
                 else if(!req.body['month'])
                 {
@@ -575,7 +599,7 @@ require('./src/db.js').get(config.db, function(db)
                     res.writeHeader(400,{"Content-Type":"application/json"})
                     res.write(JSON.stringify({}))
                     res.end()
-                    
+                    next();                    
                 }
                 else if(!req.body['key'])
                 {
@@ -583,7 +607,7 @@ require('./src/db.js').get(config.db, function(db)
                     res.writeHeader(400,{"Content-Type":"application/json"})
                     res.write(JSON.stringify({}))
                     res.end()
-                    
+                    next();                    
                 }
                 else
                 {
@@ -593,12 +617,14 @@ require('./src/db.js').get(config.db, function(db)
                         res.writeHeader(200,{"Content-Type":"application/json"})
                         res.write(JSON.stringify({}))
                         res.end()
+                        next();
                     })
                 }                
             }).catch(function(x)
             {
                 res.writeHeader(500)
                 res.end()                
+                next();
             })
             
         }

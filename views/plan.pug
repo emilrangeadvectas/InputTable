@@ -96,7 +96,7 @@ html
                 var t = name.split(";")
                 $.ajax(
                 {
-                  url: '/plans/'+plan_id,
+                  url: '/plans',
                   data: JSON.stringify({"plan_id":plan_id,"month":t[1],"key":t[0],"value":x.value}),
                   method:"PUT",
                   contentType: "application/json"
