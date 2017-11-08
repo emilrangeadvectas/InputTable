@@ -2,6 +2,17 @@ html
   include include/html_head.pug
   body
     include include/head.pug
+    h2 Templates
+    table(class="standard")
+        tr
+            th name
+            th file
+            th params
+        each val in templates
+            tr
+                td=val['name']
+                td=val['filename']
+            
     h2 User group plans
     h3 Create new group plan
     form(method='post',action='/admin/create_group_plan' class="standard_form")

@@ -22,6 +22,7 @@ html
                     th OCT
                     th NOV
                     th DEC
+                    th Sum
 
                 each val in data
                     if val['level']==1
@@ -59,6 +60,7 @@ html
                             td=val['OCT']!==null ? Math.round(val['OCT']) : 0 
                             td=val['NOV']!==null ? Math.round(val['NOV']) : 0 
                             td=val['DEC']!==null ? Math.round(val['DEC']) : 0 
+                            td=val['sum']!==null ? Math.round(val['sum']) : 0 
                         else 
                             td
                                 input(value=val['JAN'], type='text', name=val['id']+';JAN',disabled=disable_form, class="value_input", onchange="save_value(this,"+plan_id+",'"+val['id']+';JAN'+"')")
@@ -84,13 +86,34 @@ html
                                 input(value=val['NOV'], type='text', name=val['id']+';NOV',disabled=disable_form, class="value_input", onchange="save_value(this,"+plan_id+",'"+val['id']+';NOV'+"')")
                             td
                                 input(value=val['DEC'], type='text', name=val['id']+';DEC',disabled=disable_form, class="value_input", onchange="save_value(this,"+plan_id+",'"+val['id']+';DEC'+"')")
+                            td
+                                input(value=val['sum'], type='text', name=val['id']+';sum',disabled=disable_form, class="value_input", onchange="key_value(this,"+plan_id+",'"+val['id']+"')")
                 tr(class="space")
                     th
                     td(colspan=13)
 
         script.
         
-        
+
+            function key_value(x,plan_id,name)
+            {
+                var t = name.split(";")
+                $.ajax(
+                {
+                  url: '/plans/key',
+                  data: JSON.stringify({"plan_id":plan_id,"value":x.value,"a_id":name}),
+                  method:"PUT",
+                  contentType: "application/json"
+
+                }).done(function(d)
+                {
+                    console.log("1!")
+                }).fail(function(r)
+                {
+                    console.log("2!")
+                });
+            }
+            
             function save_value(x,plan_id,name)
             {
                 var t = name.split(";")

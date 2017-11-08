@@ -136,17 +136,20 @@ exports.get = function(config,callback)
             });
         }
         
-        db.create_plan = function(division_id,group_plan_id,callback)
+        db.create_plan = function(division_id,group_plan_id)
         {
-            var sql = "INSERT INTO input_table_plans ([_division_id],[_group_plan_id],[status]) VALUES (@division_id,@group_plan_id,0)";
-            new mssql.Request()
-                .input('division_id',mssql.BigInt,division_id)
-                .input('group_plan_id',mssql.BigInt,group_plan_id)
-                .query(sql,function(err,recordsets)
-                {
-                    console.log(err)
-                    callback();
-                })            
+            return new Promise(function(res,rej)
+			{                
+                var sql = "INSERT INTO input_table_plans ([_division_id],[_group_plan_id],[status]) VALUES (@division_id,@group_plan_id,0); SELECT SCOPE_IDENTITY() AS id ";
+                new mssql.Request()
+                    .input('division_id',mssql.BigInt,division_id)
+                    .input('group_plan_id',mssql.BigInt,group_plan_id)
+                    .query(sql,function(err,recordsets)
+                    {
+                        if(err)rej(err)
+                        else res(recordsets.recordset[0]['id']);
+                    })            
+            })
         };
 
         db.valid_admin = function(callback)
@@ -154,8 +157,7 @@ exports.get = function(config,callback)
             new mssql.Request()
                 .query("SELECT COUNT(*) AS c FROM input_table",function(err,recordsets)
                 {
-                    callback(recordsets.recordset[0].c>0);
-                    
+                    callback(recordsets.recordset[0].c>0);                    
                 });
         }
         
@@ -255,6 +257,7 @@ exports.get = function(config,callback)
             {
                 var sql = "DROP TABLE IF EXISTS #temp; "+
                           "DROP TABLE IF EXISTS #temp2; "+
+                          "DROP TABLE IF EXISTS #temp3; "+
 
                           "WITH X ([root_id],[id],[type],[root_type],[parent_id]) "+
                           "AS "+
@@ -274,6 +277,8 @@ exports.get = function(config,callback)
                           "SELECT * INTO dbo.#temp2 FROM  ( SELECT root_id AS id, SUM([value]) AS value, [month] FROM #temp AS x JOIN (SELECT input_table_input.* FROM input_table_input JOIN ( SELECT MAX(id) AS id FROM input_table_input WHERE _plan_id = @plan_id GROUP BY _accounts_id, [month] ) AS k ON k.id = input_table_input.id) AS iti ON iti._accounts_id = x.id GROUP BY root_id, [month] ) AS r "+
                           "PIVOT (   max([value]) for [month] IN ([JAN],[FEB],[MAR],[APR],[MAY],[JUN],[JUL],[AUG],[SEP],[OCT],[NOV],[DEC]) ) as t; "+
 
+                          "SELECT root_id AS id, SUM([value]) AS value INTO #temp3 FROM #temp AS x JOIN (SELECT input_table_input.* FROM input_table_input JOIN ( SELECT MAX(id) AS id FROM input_table_input WHERE _plan_id = @plan_id GROUP BY _accounts_id, [month] ) AS k ON k.id = input_table_input.id) AS iti ON iti._accounts_id = x.id GROUP BY root_id;"+
+                          
                           "WITH LevelCalculater ([parent_id],[id],[v], Level) "+
                           "AS "+
                           "( "+
@@ -287,10 +292,11 @@ exports.get = function(config,callback)
                           "FROM input_table_accounts AS a "+
                           "INNER JOIN LevelCalculater AS d ON d.id = a.parent_id "+
                           ") "+
-                          "SELECT v,a.id,a.name,d.level,a.type,a.parent_id,[JAN],[FEB],[MAR],[APR],[MAY],[JUN],[JUL],[AUG],[SEP],[OCT],[NOV],[DEC] "+
+                          "SELECT v,a.id,a.name,d.level,a.type,a.parent_id,[JAN],[FEB],[MAR],[APR],[MAY],[JUN],[JUL],[AUG],[SEP],[OCT],[NOV],[DEC], t3.value AS sum "+
                           "FROM LevelCalculater AS d "+
                           "JOIN input_table_accounts AS a ON d.id = a.id "+
                           "LEFT JOIN #temp2 ON #temp2.id = d.id "+
+                          "LEFT JOIN #temp3 AS t3 ON t3.id = a.id "+
                           "ORDER BY v; "+
                           
                           "SELECT it.status, itgp.name AS group_plan_name, itd.name AS division_name FROM input_table_plans AS it JOIN input_table_group_plans AS itgp ON itgp.ID = it._group_plan_id JOIN input_table_division AS itd ON itd.id = it._division_id WHERE it.id = @plan_id";
@@ -444,6 +450,58 @@ exports.get = function(config,callback)
             })
         }
 
+        db.share_value = function(plan_id,account_id,value)
+        {
+            var months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+            //months = ["DEC"];
+            return new Promise( function(res,rej)
+            {
+//SELECT value FROM input_table_input AS i JOIN ( SELECT MAX(id) AS id FROM input_table_input WHERE _plan_id = 1 GROUP BY _accounts_id, [month] ) AS k ON k.id = i.id
+                var sql = "DROP TABLE IF EXISTS #temp3; "+
+                          "DROP TABLE IF EXISTS #temp; "+
+                          "WITH X ([root_id],[id],[type],[root_type],[parent_id]) "+
+                          "AS "+
+                          "( "+
+                          "SELECT [id] as root_id, [id],[type],a.type AS [root_type],[parent_id] "+
+                          "FROM input_table_accounts AS a "+
+                          "WHERE a.type = 0 OR a.type = 2 "+
+                          "UNION ALL "+
+                          "SELECT [root_id],a.[id],a.[type],[root_type],a.[parent_id] "+
+                          "FROM input_table_accounts AS a "+
+                          "INNER JOIN X AS d ON ([root_type]=2 and d.[parent_id] = a.[id] and a.[type]=2 ) "+
+                          "OR ( [root_type]=1 and (( d.[parent_id] = a.[parent_id] AND a.id != d.id AND d.type = 1 ) OR d.[id] = a.[parent_id])) "+
+                          "OR ( [root_type]=0 and d.[id] = a.[parent_id] ) "+
+                          ") SELECT root_id, id INTO dbo.#temp FROM X WHERE NOT (root_id = id and type = 1 and root_type = 1) GROUP BY root_id, id; "+
+                          "SELECT root_id AS id, SUM([value]) AS value INTO #temp3 FROM #temp AS x JOIN (SELECT input_table_input.* FROM input_table_input JOIN ( SELECT MAX(id) AS id FROM input_table_input WHERE _plan_id = @plan_id GROUP BY _accounts_id, [month] ) AS k ON k.id = input_table_input.id) AS iti ON iti._accounts_id = x.id GROUP BY root_id "+
+                          "DECLARE @d DECIMAL(8,4); "+
+                          "SET @d = (SELECT value FROM #temp3 WHERE id = @account_id); "+
+                          "DECLARE @g DECIMAL(8,4); "+
+
+                          "SET @g = (SELECT (IIF(@d IS NULL, 0, @d)-@value)/12); ";
+
+
+                          
+                          months.forEach(function(x)
+                          {
+                              var i_sql = "INSERT INTO input_table_input ([value], [month], [_accounts_id], [_plan_id]) VALUES ( ( SELECT CASE WHEN COUNT(*)>0 THEN ( SELECT value FROM input_table_input AS i JOIN ( SELECT MAX(id) AS id FROM input_table_input WHERE _plan_id = @plan_id AND _accounts_id = @account_id AND [month] = '"+x+"' GROUP BY _accounts_id, [month] ) AS k ON k.id = i.id ) -@g ELSE -@g END FROM  ( SELECT value FROM input_table_input AS i JOIN ( SELECT MAX(id) AS id FROM input_table_input WHERE _plan_id = @plan_id AND _accounts_id = @account_id AND [month] = '"+x+"' GROUP BY _accounts_id, [month] ) AS k ON k.id = i.id ) AS dm)  ,'"+x+"',@account_id,@plan_id); ";
+                              sql += i_sql;
+                          })
+                          
+
+                new mssql.Request()
+					.input('account_id',mssql.BigInt,account_id) 
+					.input('plan_id',mssql.BigInt,plan_id)
+					.input('value',mssql.BigInt,value)
+                    .query(sql,function(err,r)
+                    {
+                        console.log(r)
+                        if(err) rej(err);
+                        else res()
+                    }) 
+                    
+            })
+        }
+        
         db.get_rapport_user = function()
         {
             return new Promise( function(res,rej)
@@ -464,7 +522,7 @@ exports.get = function(config,callback)
             return new Promise( function(res,rej)
             {
                 var sql = "SELECT is_admin, status FROM input_table_divsion_user AS itdv "+
-                      "JOIN input_table_plans AS itp ON itp.id =  itdv.divions_id "+
+                      "JOIN input_table_plans AS itp ON itp._division_id =  itdv.divions_id "+
                       "JOIN input_table_users AS itu ON itu.id =  itdv.user_id "+
                       "WHERE itp.id = @plan AND itu.id = @user ";
                 new mssql.Request()

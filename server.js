@@ -11,6 +11,20 @@ var config = JSON.parse(fs.readFileSync('config/config.json', 'utf8'));
 
 var qps_auth = undefined
 
+var templates = []
+var index = 0
+fs.readdirSync('./templates/').forEach(function(x)
+{
+    var template = require('./templates/'+x).get()
+    template.filename = x
+    templates.push(template)
+    template.index = index
+    index += 1
+})
+
+console.log(templates)
+
+
 if(config.cert)
 {
     console.log("Init QPS AUTH...")
@@ -53,6 +67,7 @@ function get_user_state_for_plan(db,user_id,plan_id)
     {
         db.get_user_state_for_plan(user_id,plan_id).then(function(x)
         {
+            console.log(x)
 			if(x[0].length===0)
 			{
 				res(0);
@@ -95,16 +110,7 @@ var fallback_page = function(req,res,next,status)
 
 function is_valid_value(x)
 {
-  x = ""+x;
-  if(x==="") return false;
-  var reg = /^[0-9 ]+$/ //spaces are allowed since they are being trimmed
-  if(!reg.test(x)) return false;
-  
-  var v = x.split(' ').join('');
-  
-  if(v>1000000) return false;
-  if(v<0) return false;
-  return true;
+    return isNaN(Number(x))===false;
 }
 
 require('./src/db.js').get(config.db, function(db)
@@ -423,7 +429,7 @@ require('./src/db.js').get(config.db, function(db)
                             })
                             t = {"header":Object.keys(t.recordset[0]),"body":body}
                         }
-                        resp.render('admin',{division_user:du, user_group_plan:t,header:{title:"Admin","user":req.cookies['login_user_id']}});        
+                        resp.render('admin',{division_user:du, user_group_plan:t, templates:templates,  header:{title:"Admin","user":req.cookies['login_user_id']}});        
                         next();
                     })                    
                     
@@ -489,7 +495,7 @@ require('./src/db.js').get(config.db, function(db)
                         return x
                     })
                     
-                    res.render('plans', { plans:d,"header":{"title":"Plans","user":req.session.user_id,"is_admin":is_admin,"hide_plan_view_link":true,}})                
+                    res.render('plans', { "templates":templates, plans:d,"header":{"title":"Plans","user":req.session.user_id,"is_admin":is_admin,"hide_plan_view_link":true}})                
                     next();
                 })
                 .catch(function()
@@ -501,19 +507,46 @@ require('./src/db.js').get(config.db, function(db)
         }
     })
 
-    app.post('/plans',function(req,res)
+    app.post('/plans',function(req,res,next)
     {
         if(!req.session.user_id)
         {
             res.locals.it_log.push("try to access page that requires login. redirect to /")
             res.redirect('/')
+            next();
         }
         else
         {
-            db.create_plan(req.body['division_id'],req.body['group_plan_id'],function()
+            db.create_plan(req.body['division_id'],req.body['group_plan_id']).then(function(plan_id)
             {
-                res.redirect('/plans')                         
+
+                res.locals.it_log.push("using template with index: "+req.body['template'])
+
+                var template = templates.find(function(x){ return x.index == req.body['template'] })
+
+                var o = {}
+                var i = 
+                o.insert = function(m,a,v,c)
+                {
+                    db.update_plan_cell(plan_id,m,a,v).then(function()
+                    {
+                        c();
+                    })
+                }
+                
+                template.run(o,function()
+                {
+                    res.redirect('/plans')
+                    next();
+                    
+                })
+
             })
+            /*
+            db.create_plan(req.body['division_id'],req.body['group_plan_id'],function(plan_id)
+            {
+
+            })*/
         }
     })
     
@@ -559,6 +592,26 @@ require('./src/db.js').get(config.db, function(db)
         }
     })
 
+    app.put('/plans/key',function(req,res,next)
+    {        
+        var plan_id = req.body['plan_id']
+        var account_id = req.body['a_id']
+        var value = req.body['value']
+        res.locals.it_log.push("plan id: "+plan_id)
+        res.locals.it_log.push("account id: "+account_id)
+        res.locals.it_log.push("value: "+value)
+
+        db.share_value(plan_id,account_id,value).then(function()
+        {
+            res.end()
+            next();
+            
+        })
+        
+
+
+    })
+    
     app.put('/plans',function(req,res,next)
     {        
         if(!req.session.user_id)

@@ -17,6 +17,10 @@ html
                             form(method='POST', action='/plans')
                                 input(type='hidden', name='group_plan_id', value=val2['group_plan_id'])
                                 input(type='hidden', name='division_id', value=val2['division_id'])
+                                select(name="template")
+                                    each template in templates
+                                        option(value=template['index'])=template['name']
+                                    
                                 input(type='submit', value='create')
                         else if val2['type']=='exists'
                             a(href='/plans/'+val2['id'])=val2['status']
